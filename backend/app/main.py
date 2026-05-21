@@ -28,7 +28,13 @@ from app.goal_suggestion import (
     save_goal_to_supabase,
     refine_custom_goal_by_ai
 )
-
+from app.action_plan import (
+    ActionGenerateRequest,
+    ActionStepStatusRequest,
+    generate_action_steps_by_ai,
+    save_action_steps_to_supabase,
+    update_action_step_status
+)
 app = FastAPI()
 
 # =========================
@@ -173,4 +179,32 @@ def confirm_goal(data: GoalConfirmRequest):
     return {
         "message": "Goal saved to Supabase successfully",
         "saved_goal": saved_goal
+    }
+
+@app.post("/api/actions/generate")
+def generate_action_plan(data: ActionGenerateRequest):
+    steps = generate_action_steps_by_ai(data)
+
+    saved_steps = save_action_steps_to_supabase(
+        goal_id=data.goal_id,
+        steps=steps
+    )
+
+    return {
+        "message": "SMART action plan generated and saved successfully",
+        "goal_id": data.goal_id,
+        "steps": saved_steps
+    }
+
+
+@app.put("/api/actions/{step_id}/status")
+def update_action_status(step_id: int, data: ActionStepStatusRequest):
+    updated_step = update_action_step_status(
+        step_id=step_id,
+        is_completed=data.is_completed
+    )
+
+    return {
+        "message": "Action step status updated successfully",
+        "step": updated_step
     }
