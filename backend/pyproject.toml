@@ -1,0 +1,21 @@
+[project]
+name = "scrum-ai-coach-backend"
+version = "0.1.0"
+description = "Backend API for Scrum AI Coach"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.0",
+  "pydantic[email]>=2.9.0",
+  "python-dotenv>=1.0.1",
+  "supabase>=2.7.4",
+  "groq>=0.11.0",
+]
+
+[build-system]
+requires = ["hatchling"] # Khuyên dùng hatchling thay vì setuptools cho project hiện đại
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = false
+# Bạn có thể thêm các cấu hình khác tại đây nếu cần

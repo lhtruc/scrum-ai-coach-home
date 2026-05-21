@@ -1,0 +1,20 @@
+:root {
+  --primary: #2563eb;       /* Tone màu chủ đạo: Xanh lam đậm */
+  --primary-hover: #1d4ed8;
+  --bg-body: #f8fafc;       /* Nền trang: Xám xanh cực nhạt */
+  --bg-card: #ffffff;       /* Nền thẻ: Trắng */
+  --text-main: #0f172a;     /* Chữ chính: Đen xám */
+  --text-muted: #64748b;    /* Chữ phụ: Xám nhạt */
+  --border: #e2e8f0;        /* Viền chung */
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  box-sizing: border-box;
+}
+
+* { box-sizing: inherit; }
