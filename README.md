@@ -1,1 +1,1 @@
-# scrum-ai-coach
+# scrum-ai-coach-lam o nha
