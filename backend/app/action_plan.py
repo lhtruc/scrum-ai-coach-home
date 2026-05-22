@@ -2,7 +2,7 @@ import os
 import json
 from pathlib import Path
 from typing import List
-from datetime import date
+from datetime import date, datetime
 from dotenv import load_dotenv
 from groq import Groq
 from pydantic import BaseModel, Field
@@ -223,5 +223,91 @@ def get_action_steps_by_goal(goal_id: int) -> dict:
         "total_steps": total_steps,
         "completed_steps": completed_steps,
         "progress_percentage": progress_percentage,
+        "steps": steps
+    }
+
+def _parse_deadline(deadline_value):
+    if deadline_value is None:
+        return None
+
+    if isinstance(deadline_value, date):
+        return deadline_value
+
+    if isinstance(deadline_value, str):
+        try:
+            return datetime.strptime(deadline_value[:10], "%Y-%m-%d").date()
+        except ValueError:
+            return None
+
+    return None
+
+
+def get_active_goal_stats(user_id: str | None = None) -> dict:
+    goal_query = (
+        supabase
+        .table("user_goals")
+        .select("id, user_id, name, goal_title, goal_technique, feasibility, created_at")
+        .order("created_at", desc=True)
+        .limit(1)
+    )
+
+    if user_id:
+        goal_query = goal_query.eq("user_id", user_id)
+
+    goal_response = goal_query.execute()
+    goals = goal_response.data or []
+
+    if not goals:
+        raise HTTPException(
+            status_code=404,
+            detail="No active goal found."
+        )
+
+    active_goal = goals[0]
+    goal_id = active_goal["id"]
+
+    steps_response = (
+        supabase
+        .table("action_steps")
+        .select("id, goal_id, title, description, metric, deadline, is_completed, created_at")
+        .eq("goal_id", goal_id)
+        .order("id")
+        .execute()
+    )
+
+    steps = steps_response.data or []
+
+    total_steps = len(steps)
+    completed_steps = sum(1 for step in steps if step.get("is_completed") is True)
+    pending_steps = total_steps - completed_steps
+
+    if total_steps == 0:
+        completion_percentage = 0
+    else:
+        completion_percentage = round((completed_steps / total_steps) * 100, 2)
+
+    parsed_deadlines = []
+
+    for step in steps:
+        parsed_deadline = _parse_deadline(step.get("deadline"))
+
+        if parsed_deadline:
+            parsed_deadlines.append(parsed_deadline)
+
+    if parsed_deadlines:
+        goal_deadline = max(parsed_deadlines)
+        days_remaining = (goal_deadline - date.today()).days
+    else:
+        goal_deadline = None
+        days_remaining = None
+
+    return {
+        "active_goal": active_goal,
+        "total_steps": total_steps,
+        "completed_steps": completed_steps,
+        "pending_steps": pending_steps,
+        "completion_percentage": completion_percentage,
+        "goal_deadline": goal_deadline.isoformat() if goal_deadline else None,
+        "days_remaining": days_remaining,
         "steps": steps
     }
