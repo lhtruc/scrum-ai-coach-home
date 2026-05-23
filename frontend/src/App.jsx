@@ -1,15 +1,15 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Layout from './components/Layout';
-import SkillAssessment from './pages/SkillAssessment';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Layout from "./components/Layout";
+import RegisterPage from "./pages/RegisterPage";
+import SkillAssessment from "./pages/SkillAssessment";
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<SkillAssessment />} />
-        </Routes>
-      </Layout>
+      <Routes>
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/" element={<Layout><SkillAssessment /></Layout>} />
+      </Routes>
     </BrowserRouter>
   );
 }
