@@ -39,7 +39,7 @@ from app.action_plan import (
     update_action_step_status,
     get_action_steps_by_goal,
     get_active_goal_stats,
-    validate_goal_exists
+    validate_goal_exists,
     revise_action_steps_by_ai,
     BulkUpdateActionStepsRequest,
     bulk_update_action_steps,
