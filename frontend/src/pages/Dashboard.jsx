@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './Dashboard.css';
+import Feedback from './Feedback';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -169,6 +170,12 @@ export default function Dashboard() {
             <p>Manage your account settings and preferences.</p>
           </div>
         </div>
+      </section>
+
+      {/* Weekly Feedback (inline) */}
+      <section className="dashboard-feedback-section">
+        <h2 className="section-title">Weekly Feedback</h2>
+        <Feedback />
       </section>
     </div>
   );

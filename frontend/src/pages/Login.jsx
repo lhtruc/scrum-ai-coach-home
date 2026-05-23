@@ -129,24 +129,25 @@ export default function Login() {
         setIsProcessingOAuth(true);
 
         try {
-          const result = await supabaseAuth.getSessionFromUrl();
-          console.log('[Login] getSessionFromUrl result:', result);
+          // Use getSession() instead of getSessionFromUrl() for hash-based tokens
+          const result = await supabaseAuth.getSession();
+          console.log('[Login] getSession result:', result);
           if (result?.session) {
             const token = result.session.access_token;
             const user = result.user;
-            console.log('[Login] parsed session from URL, navigating home');
-            // mark processed and clean up URL to avoid re-processing
+            console.log('[Login] parsed session from getSession, navigating home');
+            // mark processed and clean up URL to avoid re-processing or duplicate hash
             oauthProcessedRef.current = true;
             try {
-              const newUrl = window.location.pathname + window.location.search;
-              window.history.replaceState(null, '', newUrl);
+              // replace the URL fragment while preserving current pathname
+              window.history.replaceState({}, document.title, window.location.pathname);
             } catch (e) {
               /* ignore */
             }
             await handleSuccess({ token, user });
             return;
           }
-          console.log('[Login] no session parsed from OAuth fragment');
+          console.log('[Login] no session parsed from getSession');
         } finally {
           setIsProcessingOAuth(false);
         }
