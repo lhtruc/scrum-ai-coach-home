@@ -100,9 +100,9 @@ export default function Dashboard() {
             </p>
           </div>
           {current_goal ? (
-            <Link to="/" className="widget-link">Manage Goal</Link>
+            <Link to="/skills" className="widget-link">Manage Goal</Link>
           ) : (
-            <Link to="/" className="widget-link-btn">Create Goal</Link>
+            <Link to="/skills" className="widget-link-btn">Create Goal</Link>
           )}
         </div>
 
@@ -148,11 +148,11 @@ export default function Dashboard() {
       <section className="dashboard-shortcuts-section">
         <h2 className="section-title">Quick Actions</h2>
         <div className="shortcuts-grid">
-          <div className="shortcut-item-card" onClick={() => navigate('/')}>
+          <div className="shortcut-item-card" onClick={() => navigate('/skills')}>
             <h4>Skill Profile</h4>
             <p>Update skill rating levels and view coach analysis.</p>
           </div>
-          <div className="shortcut-item-card" onClick={() => navigate('/')}>
+          <div className="shortcut-item-card" onClick={() => navigate('/skills')}>
             <h4>Goal Setting</h4>
             <p>Select recommended or customize your learning roadmaps.</p>
           </div>

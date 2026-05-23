@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 
 import Layout from "./components/Layout";
 import RequireAuth from "./components/RequireAuth";
@@ -17,6 +17,11 @@ import Dashboard from "./pages/Dashboard";
 import ProgressDashboard from "./pages/ProgressDashboard";
 import Settings from "./pages/Settings";
 
+function HomeRedirect() {
+  const token = localStorage.getItem("access_token");
+  return <Navigate to={token ? "/dashboard" : "/welcome"} replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -32,6 +37,12 @@ export default function App() {
           {/* Protected Routes */}
           <Route
             path="/"
+            element={<HomeRedirect />}
+          />
+
+          {/* Protected Routes */}
+          <Route
+            path="/skills"
             element={
               <RequireAuth>
                 <RequireRole>
