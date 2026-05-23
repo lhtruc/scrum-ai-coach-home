@@ -23,6 +23,16 @@ const supabaseAuth = {
     return data;
   },
 
+  signUp: async (email, password) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
   signOut: async () => {
     await supabase.auth.signOut();
   },

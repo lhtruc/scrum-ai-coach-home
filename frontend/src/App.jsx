@@ -6,6 +6,8 @@ import Login from "./pages/Login";
 import RegisterPage from "./pages/RegisterPage";
 import ActionPlan from "./pages/ActionPlan";
 import RequireAuth from "./components/RequireAuth";
+import RequireRole from "./components/RequireRole";
+import Onboarding from "./pages/Onboarding";
 
 export default function App() {
   return (
@@ -20,7 +22,9 @@ export default function App() {
             path="/"
             element={
               <RequireAuth>
-                <SkillAssessment />
+                <RequireRole>
+                  <SkillAssessment />
+                </RequireRole>
               </RequireAuth>
             }
           />
@@ -29,10 +33,13 @@ export default function App() {
             path="/action-plan"
             element={
               <RequireAuth>
-                <ActionPlan />
+                <RequireRole>
+                  <ActionPlan />
+                </RequireRole>
               </RequireAuth>
             }
           />
+          <Route path="/onboarding" element={<Onboarding />} />
         </Routes>
       </Layout>
     </BrowserRouter>
