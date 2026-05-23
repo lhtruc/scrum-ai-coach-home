@@ -370,7 +370,10 @@ def assess_skills(data: SkillAssessmentRequest, current_user=Depends(verify_toke
         "rating_level": item.rating_level
     } for item in data.ratings]
 
-    result = supabase.table("user_skills").upsert(rows).execute()
+    result = supabase.table("user_skills").upsert(
+        rows,
+        on_conflict="user_id,skills_name"
+    ).execute()
 
     summary = [{
         "skill_name": item.skill_name,

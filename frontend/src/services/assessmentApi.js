@@ -1,5 +1,15 @@
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('access_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const getJsonHeaders = ({ auth = false } = {}) => ({
+  'Content-Type': 'application/json',
+  ...(auth ? getAuthHeaders() : {})
+});
+
 const assessmentApi = {
   getSkills: async () => {
     const response = await fetch(`${API_BASE_URL}/skills`);
@@ -10,7 +20,7 @@ const assessmentApi = {
   submitAssessment: async (payload) => {
     const response = await fetch(`${API_BASE_URL}/skills/assess`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getJsonHeaders({ auth: true }),
       body: JSON.stringify(payload)
     });
     if (!response.ok) throw new Error('Failed to submit assessment');

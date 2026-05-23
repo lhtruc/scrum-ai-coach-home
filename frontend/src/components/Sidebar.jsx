@@ -6,8 +6,8 @@ export default function Sidebar() {
 
   const menuItems = [
     { name: 'Dashboard', path: '/dashboard' },
-    { name: 'Skill Profile', path: '/' },
-    { name: 'Goal', path: '/' },
+    { name: 'Skill Profile', path: '/skills' },
+    { name: 'Goal', path: '/skills' },
     { name: 'Action Plan', path: '/action-plan' },
     { name: 'Progress', path: '/progress' },
     { name: 'Settings', path: '/settings' }

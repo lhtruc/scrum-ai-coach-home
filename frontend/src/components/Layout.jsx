@@ -5,7 +5,7 @@ import './Layout.css';
 
 export default function Layout({ children }) {
   const location = useLocation();
-  const publicPaths = ['/welcome', '/login', '/register'];
+  const publicPaths = ['/', '/welcome', '/login', '/register'];
   const isPublic = publicPaths.includes(location.pathname);
 
   if (isPublic) {
