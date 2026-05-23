@@ -10,6 +10,9 @@ import ActionProgress from "./pages/ActionProgress";
 import Login from "./pages/Login";
 import RegisterPage from "./pages/RegisterPage";
 import ActionPlan from "./pages/ActionPlan";
+import Dashboard from "./pages/Dashboard";
+import ProgressDashboard from "./pages/ProgressDashboard";
+import Settings from "./pages/Settings";
 import RequireAuth from "./components/RequireAuth";
 
 export default function App() {
@@ -42,12 +45,29 @@ export default function App() {
             }
           />
 
-          {/* Thêm route /progress từ nhánh longfe1 và bọc RequireAuth */}
+          <Route
+            path="/dashboard"
+            element={
+              <RequireAuth>
+                <Dashboard />
+              </RequireAuth>
+            }
+          />
+
           <Route
             path="/progress"
             element={
               <RequireAuth>
-                <ActionProgress />
+                <ProgressDashboard />
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/settings"
+            element={
+              <RequireAuth>
+                <Settings />
               </RequireAuth>
             }
           />

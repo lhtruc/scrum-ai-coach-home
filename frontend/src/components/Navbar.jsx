@@ -3,7 +3,6 @@ import './Navbar.css';
 import { useEffect, useState } from 'react';
 
 export default function Navbar() {
-  // hide navbar for welcome, login, register pages
   const location = useLocation();
   const hiddenPaths = ['/welcome', '/login', '/register'];
   if (hiddenPaths.includes(location.pathname)) return null;
@@ -16,11 +15,15 @@ export default function Navbar() {
     const onStorage = () => setToken(localStorage.getItem('jwt_token'));
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, [location.pathname]); // Cập nhật lại token khi chuyển trang
+  }, [location.pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem('jwt_token');
     localStorage.removeItem('user_profile');
+    
+    // Đảm bảo trình duyệt nhận biết ngay lập tức việc mất token
+    window.dispatchEvent(new Event('storage')); 
+    
     setToken(null);
     navigate('/login');
   };
@@ -28,20 +31,36 @@ export default function Navbar() {
   return (
     <nav className="navbar">
       <div className="nav-container">
+        
         <Link to="/" className="nav-brand" style={{ color: 'inherit', textDecoration: 'none' }}>
           <span className="logo-icon">⚡</span>
           AI Coach
         </Link>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Link to="/progress" style={{
-            textDecoration: 'none',
-            color: 'var(--text-main)',
-            fontSize: '14px',
-            fontWeight: 700
-          }}>
-            Progress
-          </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          
+          {/* LOGIC CHUẨN: Cả Dashboard và Progress đều chỉ hiện khi ĐÃ ĐĂNG NHẬP */}
+          {token && (
+            <>
+              <Link to="/dashboard" style={{
+                textDecoration: 'none',
+                color: 'var(--text-main)',
+                fontSize: '14px',
+                fontWeight: 700
+              }}>
+                Dashboard
+              </Link>
+
+              <Link to="/progress" style={{
+                textDecoration: 'none',
+                color: 'var(--text-main)',
+                fontSize: '14px',
+                fontWeight: 700
+              }}>
+                Progress
+              </Link>
+            </>
+          )}
 
           <div className="nav-profile">
             {token ? (
@@ -58,6 +77,7 @@ export default function Navbar() {
               </Link>
             )}
           </div>
+
         </div>
       </div>
     </nav>

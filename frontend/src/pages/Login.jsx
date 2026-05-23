@@ -13,7 +13,7 @@ export default function Login() {
     }
     // optionally store user info
     if (data?.user) localStorage.setItem('user_profile', JSON.stringify(data.user));
-    navigate('/', { replace: true });
+    navigate('/dashboard', { replace: true });
   };
 
   useEffect(() => {

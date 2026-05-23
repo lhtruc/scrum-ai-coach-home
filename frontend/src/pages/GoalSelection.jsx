@@ -211,10 +211,19 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
             Your learning sprint for <strong>{activeGoal.goal_title}</strong> has been successfully registered in Supabase.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button
+              id="view-dashboard-btn"
+              className="btn btn-primary"
+              onClick={() => navigate('/dashboard')}
+              style={{ background: 'linear-gradient(135deg, #2563eb, #60a5fa)', color: 'white' }}
+            >
+              Go to Progress Dashboard
+            </button>
             {savedGoalId && (
               <button
                 id="view-action-plan-btn"
                 className="btn btn-primary"
+                style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }}
                 onClick={() => navigate('/action-plan', {
                   state: {
                     goalId: savedGoalId,

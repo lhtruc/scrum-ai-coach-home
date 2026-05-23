@@ -48,8 +48,9 @@ from app.action_plan import (
     bulk_update_action_steps,
     get_dashboard_summary
 )
+
 app = FastAPI()
-security = HTTPBearer()
+
 # =========================
 # CẤU HÌNH CORS
 # =========================
@@ -81,6 +82,7 @@ class RoleUpdateRequest(BaseModel):
 class FeedbackResponse(BaseModel):
     message: str
     feedback: dict
+
 # =========================
 # UTILS
 # =========================
@@ -94,22 +96,16 @@ def get_level_from_rating(rating_level: int):
     }
     return level_mapping.get(rating_level, "Unknown")
 
-def verify_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
-
     try:
         response = supabase.auth.get_user(token)
-
         if response.user is None:
             raise HTTPException(
                 status_code=401,
                 detail="Invalid or expired token"
             )
-
         return response.user
-
     except Exception:
         raise HTTPException(
             status_code=401,
@@ -124,35 +120,27 @@ def read_root():
     return {"message": "Scrum AI Coach Backend is running"}
 
 @app.get("/api/auth/me")
-def get_current_user(current_user = Depends(verify_token)):
+def get_current_user(current_user=Depends(verify_token)):
     return {
         "message": "Token is valid",
         "user": {"id": current_user.id, "email": current_user.email}
     }
 
 @app.put("/api/users/role")
-def update_user_role(
-    data: RoleUpdateRequest,
-    current_user=Depends(verify_token)
-):
+def update_user_role(data: RoleUpdateRequest, current_user=Depends(verify_token)):
     allowed_roles = ["Employee", "Student"]
-
     if data.role not in allowed_roles:
         raise HTTPException(
             status_code=400,
             detail="Role must be either Employee or Student"
         )
-
     (
         supabase
         .table("accounts")
-        .update({
-            "role": data.role
-        })
+        .update({"role": data.role})
         .eq("auth_uid", current_user.id)
         .execute()
     )
-
     return {
         "message": "User role updated successfully",
         "user": {
@@ -164,13 +152,11 @@ def update_user_role(
 
 @app.post("/api/auth/login")
 def login(data: LoginRequest):
-
     try:
         result = supabase.auth.sign_in_with_password({
             "email": data.email,
             "password": data.password
         })
-
         return {
             "message": "Login successful",
             "user": {
@@ -181,7 +167,6 @@ def login(data: LoginRequest):
             "refresh_token": result.session.refresh_token,
             "token_type": "bearer"
         }
-
     except Exception:
         raise HTTPException(
             status_code=401,
@@ -198,15 +183,12 @@ def get_user_profile(current_user=Depends(verify_token)):
             .eq("auth_uid", current_user.id)
             .execute()
         )
-
         if not result.data:
             raise HTTPException(
                 status_code=404,
                 detail="User profile not found in accounts table"
             )
-
         profile = result.data[0]
-
         return {
             "message": "User profile fetched successfully",
             "profile": {
@@ -215,15 +197,14 @@ def get_user_profile(current_user=Depends(verify_token)):
                 "role": profile.get("role")
             }
         }
-
     except HTTPException:
         raise
-
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=str(e)
         )
+
 @app.get("/api/feedback/history")
 def get_feedback_history(current_user=Depends(verify_token)):
     result = (
@@ -234,11 +215,11 @@ def get_feedback_history(current_user=Depends(verify_token)):
         .order("week_date", desc=True)
         .execute()
     )
-
     return {
         "message": "Weekly feedback history fetched successfully",
         "feedbacks": result.data
     }
+
 # =========================
 # API: SKILLS
 # =========================
@@ -251,9 +232,8 @@ def get_skills():
     }
 
 @app.get("/api/skills/profile")
-def get_skill_profile(current_user = Depends(verify_token)):
+def get_skill_profile(current_user=Depends(verify_token)):
     user_id = current_user.id
-
     result = supabase.table("user_skills") \
         .select("*") \
         .eq("user_id", user_id) \
@@ -278,16 +258,15 @@ def get_skill_profile(current_user = Depends(verify_token)):
     }
 
 @app.post("/api/skills/assess")
-def assess_skills(data: SkillAssessmentRequest, current_user = Depends(verify_token)):
+def assess_skills(data: SkillAssessmentRequest, current_user=Depends(verify_token)):
     user_id = current_user.id
-
     rows = [{
         "user_id": user_id,
         "skills_name": item.skill_name,
         "rating_level": item.rating_level
     } for item in data.ratings]
 
-    supabase.table("user_skills").upsert(rows).execute()
+    result = supabase.table("user_skills").upsert(rows).execute()
 
     summary = [{
         "skill_name": item.skill_name,
@@ -302,7 +281,7 @@ def assess_skills(data: SkillAssessmentRequest, current_user = Depends(verify_to
     }
 
 # =========================
-# API: GOALS (AI TÍCH HỢP)
+# API: GOALS & ACTIONS
 # =========================
 @app.post("/api/goals/suggest")
 def suggest_goals(data: GoalSuggestRequest):
@@ -341,18 +320,15 @@ def confirm_goal(data: GoalConfirmRequest):
 def generate_action_plan(data: ActionGenerateRequest):
     validate_goal_exists(data.goal_id)
     steps = generate_action_steps_by_ai(data)
-
     saved_steps = save_action_steps_to_supabase(
         goal_id=data.goal_id,
         steps=steps
     )
-
     return {
         "message": "SMART action plan generated and saved successfully",
         "goal_id": data.goal_id,
         "steps": saved_steps
     }
-
 
 @app.put("/api/actions/{step_id}/status")
 def update_action_status(step_id: int, data: ActionStepStatusRequest):
@@ -360,7 +336,6 @@ def update_action_status(step_id: int, data: ActionStepStatusRequest):
         step_id=step_id,
         is_completed=data.is_completed
     )
-
     return {
         "message": "Action step status updated successfully",
         "step": updated_step
@@ -369,7 +344,6 @@ def update_action_status(step_id: int, data: ActionStepStatusRequest):
 @app.get("/api/goals/{goal_id}/actions")
 def get_goal_action_steps(goal_id: int):
     result = get_action_steps_by_goal(goal_id)
-
     return {
         "message": "Action steps fetched successfully",
         "goal_id": result["goal_id"],
@@ -382,7 +356,6 @@ def get_goal_action_steps(goal_id: int):
 @app.get("/api/goals/active/stats")
 def get_active_goal_dashboard_stats(user_id: str | None = None):
     result = get_active_goal_stats(user_id)
-
     return {
         "message": "Active goal statistics fetched successfully",
         "active_goal": result["active_goal"],
@@ -397,6 +370,74 @@ def get_active_goal_dashboard_stats(user_id: str | None = None):
         "steps": result["steps"]
     }
 
+# =========================
+# API: DASHBOARD (Nhánh Phat)
+# =========================
+@app.get("/api/dashboard/summary")
+def get_main_dashboard_summary(user_id: str | None = None):
+    goal_query = (
+        supabase
+        .table("user_goals")
+        .select("id, user_id, name, goal_title, goal_technique, feasibility, created_at")
+        .order("created_at", desc=True)
+        .limit(1)
+    )
+    if user_id:
+        goal_query = goal_query.eq("user_id", user_id)
+        
+    try:
+        goal_response = goal_query.execute()
+        goals = goal_response.data or []
+    except Exception as e:
+        print("Error fetching goals for summary:", e)
+        goals = []
+    
+    user_name = "User"
+    user_role = "Employee/Student"
+    current_goal = None
+    progress_percentage = 0
+    next_action_step = None
+    
+    if goals:
+        active_goal = goals[0]
+        user_name = active_goal.get("name") or "User"
+        current_goal = active_goal.get("goal_title") or active_goal.get("name")
+        goal_id = active_goal["id"]
+        
+        try:
+            steps_response = (
+                supabase
+                .table("action_steps")
+                .select("id, title, is_completed, deadline")
+                .eq("goal_id", goal_id)
+                .order("id")
+                .execute()
+            )
+            steps = steps_response.data or []
+        except Exception as e:
+            print("Error fetching action steps for summary:", e)
+            steps = []
+        
+        total_steps = len(steps)
+        completed_steps = sum(1 for step in steps if step.get("is_completed") is True)
+        if total_steps > 0:
+            progress_percentage = round((completed_steps / total_steps) * 100)
+            
+        incomplete_steps = [step for step in steps if not step.get("is_completed")]
+        if incomplete_steps:
+            next_action_step = incomplete_steps[0].get("title")
+            
+    return {
+        "user_name": user_name,
+        "user_role": user_role,
+        "current_goal": current_goal,
+        "progress_percentage": progress_percentage,
+        "next_action_step": next_action_step or ("None (All steps completed!)" if current_goal else "No active goal yet")
+    }
+
+# =========================
+# API: FEEDBACK (Nhánh main)
+# =========================
 @app.post("/api/feedback/generate")
 def generate_weekly_feedback(current_user=Depends(verify_token)):
     try:
@@ -417,6 +458,7 @@ def generate_weekly_feedback(current_user=Depends(verify_token)):
                 "message": "Feedback already generated for this week",
                 "feedback": existing_feedback.data[0]
             }
+            
         actions_result = (
             supabase
             .table("action_steps")
@@ -452,7 +494,6 @@ def generate_weekly_feedback(current_user=Depends(verify_token)):
             }
 
         action_text = ""
-
         for action in completed_actions:
             action_text += f"""
 Title: {action.get("title")}
@@ -462,11 +503,8 @@ Metric: {action.get("metric")}
 
         prompt = f"""
 You are an AI learning coach.
-
 Analyze the user's completed action steps from the past 7 days:
-
 {action_text}
-
 Return ONLY valid JSON with exactly these fields:
 {{
   "summary": "...",
@@ -474,7 +512,6 @@ Return ONLY valid JSON with exactly these fields:
   "improvements": "..."
 }}
 """
-
         response = groq_client.chat.completions.create(
             model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
             messages=[
@@ -514,21 +551,21 @@ Return ONLY valid JSON with exactly these fields:
             "message": "Weekly feedback generated successfully",
             "feedback": save_result.data[0]
         }
-
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=str(e)
         )
 
+# =========================
+# API: QUẢN LÝ TIẾN ĐỘ TASK
+# =========================
 @app.get("/api/actions/check-overdue")
-def check_overdue_actions(current_user = Depends(verify_token)):
+def check_overdue_actions(current_user=Depends(verify_token)):
     from datetime import date
-
     user_id = current_user.id
     today = date.today().isoformat()
 
-    # lấy goals của user
     goals_response = (
         supabase
         .table("user_goals")
@@ -545,7 +582,6 @@ def check_overdue_actions(current_user = Depends(verify_token)):
             "overdue_count": 0
         }
 
-    # lấy overdue steps
     overdue_response = (
         supabase
         .table("action_steps")
@@ -563,13 +599,8 @@ def check_overdue_actions(current_user = Depends(verify_token)):
         "overdue_count": overdue_count
     }
 
-
 @app.post("/api/auth/sync-account")
-def sync_account(current_user = Depends(verify_token)):
-    """Ensure an `accounts` row exists for the authenticated Supabase user (Google or email).
-
-    Inserts a new row with `auth_uid`, `email`, and default `role` = 'Student' when absent.
-    """
+def sync_account(current_user=Depends(verify_token)):
     existing = supabase.table("accounts") \
         .select("*") \
         .eq("auth_uid", current_user.id) \
@@ -592,16 +623,9 @@ def sync_account(current_user = Depends(verify_token)):
         "account": result.data
     }
 
-
 @app.post("/api/actions/revise")
-def revise_action_plan(current_user = Depends(verify_token)):
-    """Generate revised deadlines for the current user's pending action steps using the AI.
-
-    Returns a JSON array of updated steps (title, description, metric, deadline).
-    """
+def revise_action_plan(current_user=Depends(verify_token)):
     user_id = current_user.id
-
-    # Get the user's most recent goal
     goal_resp = (
         supabase
         .table("user_goals")
@@ -617,7 +641,6 @@ def revise_action_plan(current_user = Depends(verify_token)):
         return {"message": "No active goal found for user", "revised_steps": []}
 
     goal_id = goals[0]["id"]
-
     steps_resp = (
         supabase
         .table("action_steps")
@@ -629,37 +652,18 @@ def revise_action_plan(current_user = Depends(verify_token)):
     )
 
     pending_steps = steps_resp.data or []
-
     if not pending_steps:
         return {"message": "No pending action steps to revise", "revised_steps": []}
 
-    # Call AI to revise deadlines
     revised = revise_action_steps_by_ai(pending_steps)
-
     return {"message": "Revised steps generated successfully", "revised_steps": revised}
 
-
 @app.put("/api/actions/bulk-update")
-def bulk_update_actions(
-    data: BulkUpdateActionStepsRequest,
-    current_user = Depends(verify_token)
-):
-    # Note: authentication ensures user owns the steps; we assume frontend passes only user's steps
+def bulk_update_actions(data: BulkUpdateActionStepsRequest, current_user=Depends(verify_token)):
     updated_steps = bulk_update_action_steps(data.updates)
-
     return {
         "message": "Action steps updated successfully",
         "updated_steps": updated_steps
     }
-  
-@app.get("/api/dashboard/summary")
-def get_main_dashboard_summary(user_id: str | None = None):
-    result = get_dashboard_summary(user_id)
 
-    return {
-        "message": "Dashboard summary fetched successfully",
-        "user": result["user"],
-        "current_goal": result["current_goal"],
-        "progress": result["progress"],
-        "next_pending_action_step": result["next_pending_action_step"]
-    }
+# ĐÃ BỎ HÀM GET SUMMARY 
