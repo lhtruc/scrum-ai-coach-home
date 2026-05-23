@@ -117,6 +117,72 @@ def get_rating_info(rating_level: int) -> dict:
         }
     )
 
+def get_account_context_from_supabase(user_id: Optional[str], fallback_name: Optional[str] = None) -> dict:
+    default_context = {
+        "user_id": user_id,
+        "name": fallback_name or "User",
+        "role": "Student"
+    }
+
+    if not user_id:
+        return default_context
+
+    try:
+        response = (
+            supabase
+            .table("accounts")
+            .select("*")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+
+        if response.data:
+            account = response.data[0]
+            return {
+                "user_id": user_id,
+                "name": account.get("name") or fallback_name or "User",
+                "role": account.get("role") or "Student"
+            }
+    except Exception:
+        pass
+
+    try:
+        response = (
+            supabase
+            .table("accounts")
+            .select("*")
+            .eq("auth_uid", user_id)
+            .limit(1)
+            .execute()
+        )
+
+        if response.data:
+            account = response.data[0]
+            return {
+                "user_id": user_id,
+                "name": account.get("name") or fallback_name or "User",
+                "role": account.get("role") or "Student"
+            }
+    except Exception:
+        pass
+
+    return default_context
+
+
+def get_role_learning_style(role: Optional[str]) -> str:
+    normalized_role = (role or "Student").strip().lower()
+
+    if normalized_role == "student":
+        return (
+            "The user is a student. Generate learning content with a stronger focus on theory, "
+            "core concepts, foundations, guided practice, gradual skill building, and academic understanding."
+        )
+
+    return (
+        "The user is an employee or working learner. Generate learning content with a stronger focus on practical usage, "
+        "fast application, workplace scenarios, tools, implementation workflow, and immediately usable skills."
+    )
 
 def extract_json_from_text(text: str):
     try:
@@ -288,12 +354,21 @@ def sanitize_goal_object(goal: dict, allow_impossible: bool = False) -> dict:
 def suggest_goals_by_ai(data: GoalSuggestRequest) -> List[dict]:
     user_skills = get_skill_context(data.user_id, data.skills)
     skills_text = format_skills_for_prompt(user_skills)
-    
+    account_context = get_account_context_from_supabase(data.user_id, data.name)
+    role_learning_style = get_role_learning_style(account_context["role"])
+
     # Lấy tên skill hiện tại làm mốc ép AI điền đúng kịch bản
     target_skill_name = user_skills[0]["skills_name"] if user_skills else "Programming Fundamentals"
 
     prompt = f"""
 You are an AI learning coach for IT students.
+
+User profile:
+- Name: {account_context["name"]}
+- Role: {account_context["role"]}
+
+Role-based coaching style:
+{role_learning_style}
 
 [CRITICAL DIRECTIVE] 
 You must ONLY generate learning goals specifically tailored for the technical topic listed under the "Assessed Skills" section. Do NOT invent roadmaps for other skills.
@@ -372,9 +447,18 @@ Template Abstract Structure Example (Do not copy these literal values, map them 
 def validate_goal_by_ai(data: GoalValidateRequest) -> dict:
     user_skills = get_skill_context(data.user_id, data.skills)
     skills_text = format_skills_for_prompt(user_skills)
+    account_context = get_account_context_from_supabase(data.user_id, data.name)
+    role_learning_style = get_role_learning_style(account_context["role"])
 
     prompt = f"""
 You are an AI learning coach for IT students.
+
+User profile:
+- Name: {account_context["name"]}
+- Role: {account_context["role"]}
+
+Role-based validation style:
+{role_learning_style}
 
 The user's assessed skills are:
 {skills_text}
@@ -443,9 +527,18 @@ def refine_custom_goal_by_ai(data: GoalCustomRefineRequest) -> dict:
     user_skills = get_skill_context(data.user_id, data.skills)
     skills_text = format_skills_for_prompt(user_skills)
     goal_technique = data.goal_technique or "General Software Development"
+    account_context = get_account_context_from_supabase(data.user_id, data.name)
+    role_learning_style = get_role_learning_style(account_context["role"])
 
     prompt = f"""
 You are an AI learning coach for IT students.
+
+User profile:
+- Name: {account_context["name"]}
+- Role: {account_context["role"]}
+
+Role-based rewrite style:
+{role_learning_style}
 
 The user's assessed skill context is:
 {skills_text}
