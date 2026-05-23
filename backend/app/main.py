@@ -35,7 +35,8 @@ from app.action_plan import (
     save_action_steps_to_supabase,
     update_action_step_status,
     get_action_steps_by_goal,
-    get_active_goal_stats
+    get_active_goal_stats,
+    get_dashboard_summary
 )
 app = FastAPI()
 
@@ -240,4 +241,16 @@ def get_active_goal_dashboard_stats(user_id: str | None = None):
             "days_remaining": result["days_remaining"]
         },
         "steps": result["steps"]
+    }
+
+@app.get("/api/dashboard/summary")
+def get_main_dashboard_summary(user_id: str | None = None):
+    result = get_dashboard_summary(user_id)
+
+    return {
+        "message": "Dashboard summary fetched successfully",
+        "user": result["user"],
+        "current_goal": result["current_goal"],
+        "progress": result["progress"],
+        "next_pending_action_step": result["next_pending_action_step"]
     }

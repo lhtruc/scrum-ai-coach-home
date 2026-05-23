@@ -311,3 +311,148 @@ def get_active_goal_stats(user_id: str | None = None) -> dict:
         "days_remaining": days_remaining,
         "steps": steps
     }
+
+def parse_date_value(value):
+    if value is None:
+        return None
+
+    if isinstance(value, date):
+        return value
+
+    if isinstance(value, str):
+        try:
+            return datetime.strptime(value[:10], "%Y-%m-%d").date()
+        except ValueError:
+            return None
+
+    return None
+
+
+def get_user_profile_for_dashboard(user_id: str, active_goal: dict) -> dict:
+    default_profile = {
+        "user_id": user_id,
+        "name": active_goal.get("name") or "Student",
+        "role": "Employee/Student"
+    }
+
+    try:
+        account_response = (
+            supabase
+            .table("accounts")
+            .select("user_id, name, role")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+
+        accounts = account_response.data or []
+
+        if not accounts:
+            return default_profile
+
+        account = accounts[0]
+
+        return {
+            "user_id": user_id,
+            "name": account.get("name") or default_profile["name"],
+            "role": account.get("role") or default_profile["role"]
+        }
+
+    except Exception:
+        return default_profile
+
+
+def get_next_pending_action_step(steps: list[dict]) -> dict | None:
+    pending_steps = [
+        step for step in steps
+        if step.get("is_completed") is False
+    ]
+
+    if not pending_steps:
+        return None
+
+    pending_steps_with_deadline = []
+
+    for step in pending_steps:
+        parsed_deadline = parse_date_value(step.get("deadline"))
+
+        pending_steps_with_deadline.append({
+            "step": step,
+            "parsed_deadline": parsed_deadline
+        })
+
+    pending_steps_with_deadline.sort(
+        key=lambda item: item["parsed_deadline"] or date.max
+    )
+
+    return pending_steps_with_deadline[0]["step"]
+
+
+def get_dashboard_summary(user_id: str | None = None) -> dict:
+    goal_query = (
+        supabase
+        .table("user_goals")
+        .select("id, user_id, name, goal_title, goal_technique, feasibility, created_at")
+        .order("created_at", desc=True)
+        .limit(1)
+    )
+
+    if user_id:
+        goal_query = goal_query.eq("user_id", user_id)
+
+    goal_response = goal_query.execute()
+    goals = goal_response.data or []
+
+    if not goals:
+        raise HTTPException(
+            status_code=404,
+            detail="No active goal found."
+        )
+
+    active_goal = goals[0]
+    active_goal_id = active_goal["id"]
+    active_user_id = active_goal.get("user_id")
+
+    steps_response = (
+        supabase
+        .table("action_steps")
+        .select("id, goal_id, title, description, metric, deadline, is_completed, created_at")
+        .eq("goal_id", active_goal_id)
+        .order("deadline")
+        .execute()
+    )
+
+    steps = steps_response.data or []
+
+    total_steps = len(steps)
+    completed_steps = sum(1 for step in steps if step.get("is_completed") is True)
+    pending_steps = total_steps - completed_steps
+
+    if total_steps == 0:
+        progress_percentage = 0
+    else:
+        progress_percentage = round((completed_steps / total_steps) * 100, 2)
+
+    next_pending_step = get_next_pending_action_step(steps)
+
+    user_profile = get_user_profile_for_dashboard(
+        user_id=active_user_id,
+        active_goal=active_goal
+    )
+
+    return {
+        "user": user_profile,
+        "current_goal": {
+            "id": active_goal["id"],
+            "title": active_goal["goal_title"],
+            "technique": active_goal["goal_technique"],
+            "feasibility": active_goal["feasibility"]
+        },
+        "progress": {
+            "total_steps": total_steps,
+            "completed_steps": completed_steps,
+            "pending_steps": pending_steps,
+            "progress_percentage": progress_percentage
+        },
+        "next_pending_action_step": next_pending_step
+    }
