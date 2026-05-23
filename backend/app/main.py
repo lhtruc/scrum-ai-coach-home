@@ -6,6 +6,8 @@ from typing import List, Optional
 from dotenv import load_dotenv
 from supabase import create_client
 from fastapi.security import HTTPBearer
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 # Load biến môi trường
 load_dotenv()
@@ -38,7 +40,7 @@ from app.action_plan import (
     get_active_goal_stats
 )
 app = FastAPI()
-
+security = HTTPBearer()
 # =========================
 # CẤU HÌNH CORS
 # =========================
@@ -61,6 +63,13 @@ class SkillAssessmentRequest(BaseModel):
     user_id: str
     ratings: List[SkillRating]
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class RoleUpdateRequest(BaseModel):
+    role: str
+
 # =========================
 # UTILS
 # =========================
@@ -74,15 +83,27 @@ def get_level_from_rating(rating_level: int):
     }
     return level_mapping.get(rating_level, "Unknown")
 
-def verify_token(authorization: str = Header(...)):
-    if authorization is None or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid token format")
-    token = authorization.replace("Bearer ", "")
+def verify_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    token = credentials.credentials
+
     try:
-        user = supabase.auth.get_user(token)
-        return user.user
+        response = supabase.auth.get_user(token)
+
+        if response.user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired token"
+            )
+
+        return response.user
+
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
 
 # =========================
 # API: ROOT & AUTH
@@ -97,6 +118,101 @@ def get_current_user(current_user = Depends(verify_token)):
         "message": "Token is valid",
         "user": {"id": current_user.id, "email": current_user.email}
     }
+
+@app.put("/api/users/role")
+def update_user_role(
+    data: RoleUpdateRequest,
+    current_user=Depends(verify_token)
+):
+    allowed_roles = ["Employee", "Student"]
+
+    if data.role not in allowed_roles:
+        raise HTTPException(
+            status_code=400,
+            detail="Role must be either Employee or Student"
+        )
+
+    (
+        supabase
+        .table("accounts")
+        .update({
+            "role": data.role
+        })
+        .eq("auth_uid", current_user.id)
+        .execute()
+    )
+
+    return {
+        "message": "User role updated successfully",
+        "user": {
+            "id": current_user.id,
+            "email": current_user.email,
+            "role": data.role
+        }
+    }
+
+@app.post("/api/auth/login")
+def login(data: LoginRequest):
+
+    try:
+        result = supabase.auth.sign_in_with_password({
+            "email": data.email,
+            "password": data.password
+        })
+
+        return {
+            "message": "Login successful",
+            "user": {
+                "id": result.user.id,
+                "email": result.user.email
+            },
+            "access_token": result.session.access_token,
+            "refresh_token": result.session.refresh_token,
+            "token_type": "bearer"
+        }
+
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+@app.get("/api/users/profile")
+def get_user_profile(current_user=Depends(verify_token)):
+    try:
+        result = (
+            supabase
+            .table("accounts")
+            .select("*")
+            .eq("auth_uid", current_user.id)
+            .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(
+                status_code=404,
+                detail="User profile not found in accounts table"
+            )
+
+        profile = result.data[0]
+
+        return {
+            "message": "User profile fetched successfully",
+            "profile": {
+                "id": current_user.id,
+                "email": current_user.email,
+                "role": profile.get("role")
+            }
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 # =========================
 # API: SKILLS
