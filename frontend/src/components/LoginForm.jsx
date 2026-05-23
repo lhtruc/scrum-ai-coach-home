@@ -43,7 +43,8 @@ export default function LoginForm({ onSuccess }) {
         <button className="btn-primary" type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Login'}</button>
       </div>
 
-      <div>
+      <div className="social-row">
+        <div className="small-note">Or continue with</div>
         <button type="button" className="btn-google" onClick={() => supabaseAuth.signInWithGoogle()}>
           <span className="google-icon" aria-hidden>
             <svg viewBox="0 0 533.5 544.3" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
