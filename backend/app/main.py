@@ -1,13 +1,14 @@
 import os
-from fastapi import FastAPI, HTTPException, status, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from dotenv import load_dotenv
 from supabase import create_client
-from fastapi.security import HTTPBearer
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from datetime import datetime, timedelta
+import json
+from groq import Groq
 
 # Load biến môi trường
 load_dotenv()
@@ -16,7 +17,9 @@ security = HTTPBearer()
 # Kết nối Supabase
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
+groq_client = Groq(api_key=GROQ_API_KEY)
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Import AI modules từ goal_suggestion.py
@@ -70,6 +73,9 @@ class LoginRequest(BaseModel):
 class RoleUpdateRequest(BaseModel):
     role: str
 
+class FeedbackResponse(BaseModel):
+    message: str
+    feedback: dict
 # =========================
 # UTILS
 # =========================
@@ -213,7 +219,21 @@ def get_user_profile(current_user=Depends(verify_token)):
             status_code=500,
             detail=str(e)
         )
+@app.get("/api/feedback/history")
+def get_feedback_history(current_user=Depends(verify_token)):
+    result = (
+        supabase
+        .table("weekly_feedbacks")
+        .select("*")
+        .eq("user_id", current_user.id)
+        .order("week_date", desc=True)
+        .execute()
+    )
 
+    return {
+        "message": "Weekly feedback history fetched successfully",
+        "feedbacks": result.data
+    }
 # =========================
 # API: SKILLS
 # =========================
@@ -357,3 +377,127 @@ def get_active_goal_dashboard_stats(user_id: str | None = None):
         },
         "steps": result["steps"]
     }
+
+@app.post("/api/feedback/generate")
+def generate_weekly_feedback(current_user=Depends(verify_token)):
+    try:
+        one_week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+        today = datetime.utcnow().date().isoformat()
+
+        existing_feedback = (
+            supabase
+            .table("weekly_feedbacks")
+            .select("*")
+            .eq("user_id", current_user.id)
+            .eq("week_date", today)
+            .execute()
+        )
+
+        if existing_feedback.data:
+            return {
+                "message": "Feedback already generated for this week",
+                "feedback": existing_feedback.data[0]
+            }
+        actions_result = (
+            supabase
+            .table("action_steps")
+            .select("*")
+            .eq("user_id", current_user.id)
+            .eq("is_completed", True)
+            .gte("created_at", one_week_ago)
+            .execute()
+        )
+
+        completed_actions = actions_result.data or []
+
+        if len(completed_actions) == 0:
+            feedback_data = {
+                "user_id": current_user.id,
+                "week_date": datetime.utcnow().date().isoformat(),
+                "summary": "You did not complete any action steps this week, but every new week is a fresh opportunity to restart.",
+                "strengths": "You are still staying connected to your learning journey.",
+                "improvements": "Try completing at least one small action step next week to build momentum.",
+                "is_empty_week": True
+            }
+
+            save_result = (
+                supabase
+                .table("weekly_feedbacks")
+                .insert(feedback_data)
+                .execute()
+            )
+
+            return {
+                "message": "Empty week feedback generated",
+                "feedback": save_result.data[0]
+            }
+
+        action_text = ""
+
+        for action in completed_actions:
+            action_text += f"""
+Title: {action.get("title")}
+Description: {action.get("description")}
+Metric: {action.get("metric")}
+"""
+
+        prompt = f"""
+You are an AI learning coach.
+
+Analyze the user's completed action steps from the past 7 days:
+
+{action_text}
+
+Return ONLY valid JSON with exactly these fields:
+{{
+  "summary": "...",
+  "strengths": "...",
+  "improvements": "..."
+}}
+"""
+
+        response = groq_client.chat.completions.create(
+            model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a helpful AI coach. Return valid JSON only."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.4,
+            response_format={"type": "json_object"}
+        )
+
+        ai_text = response.choices[0].message.content
+        ai_feedback = json.loads(ai_text)
+
+        feedback_data = {
+            "user_id": current_user.id,
+            "week_date": datetime.utcnow().date().isoformat(),
+            "summary": ai_feedback["summary"],
+            "strengths": ai_feedback["strengths"],
+            "improvements": ai_feedback["improvements"],
+            "is_empty_week": False
+        }
+
+        save_result = (
+            supabase
+            .table("weekly_feedbacks")
+            .insert(feedback_data)
+            .execute()
+        )
+
+        return {
+            "message": "Weekly feedback generated successfully",
+            "feedback": save_result.data[0]
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
