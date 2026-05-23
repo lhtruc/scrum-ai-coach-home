@@ -6,9 +6,8 @@ export default function Sidebar() {
 
   const menuItems = [
     { name: 'Dashboard', path: '/dashboard' },
-    { name: 'Skill Profile', path: '/skills' },
-    { name: 'Goal', path: '/skills' },
-    { name: 'Action Plan', path: '/action-plan' },
+    { name: 'Skill Profile', path: '/skills', search: '?section=profile' },
+    { name: 'Goal', path: '/skills', search: '?section=goal' },
     { name: 'Progress', path: '/progress' },
     { name: 'Settings', path: '/settings' }
   ];
@@ -20,12 +19,15 @@ export default function Sidebar() {
       </div>
       <nav className="sidebar-nav">
         {menuItems.map((item, idx) => {
-          // Highlight active link
-          const isActive = location.pathname === item.path;
+          const itemHref = `${item.path}${item.search || ''}`;
+          const isActive = item.search
+            ? location.pathname === item.path && location.search === item.search
+            : location.pathname === item.path;
+
           return (
             <Link
               key={idx}
-              to={item.path}
+              to={itemHref}
               className={`sidebar-nav-link${isActive ? ' active' : ''}`}
             >
               {item.name}
