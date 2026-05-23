@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import SkillAssessment from "./pages/SkillAssessment";
 import Login from "./pages/Login";
 import RegisterPage from "./pages/RegisterPage";
+import ActionPlan from "./pages/ActionPlan";
 import RequireAuth from "./components/RequireAuth";
 
 export default function App() {
@@ -18,6 +19,15 @@ export default function App() {
             element={
               <RequireAuth>
                 <SkillAssessment />
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/action-plan"
+            element={
+              <RequireAuth>
+                <ActionPlan />
               </RequireAuth>
             }
           />

@@ -35,7 +35,8 @@ from app.action_plan import (
     save_action_steps_to_supabase,
     update_action_step_status,
     get_action_steps_by_goal,
-    get_active_goal_stats
+    get_active_goal_stats,
+    validate_goal_exists
 )
 app = FastAPI()
 
@@ -134,7 +135,7 @@ def assess_skills(data: SkillAssessmentRequest):
         "rating_level": item.rating_level
     } for item in data.ratings]
 
-    supabase.table("user_skills").insert(rows).execute()
+    supabase.table("user_skills").upsert(rows).execute()
 
     summary = [{
         "skill_name": item.skill_name,
@@ -185,6 +186,7 @@ def confirm_goal(data: GoalConfirmRequest):
 
 @app.post("/api/actions/generate")
 def generate_action_plan(data: ActionGenerateRequest):
+    validate_goal_exists(data.goal_id)
     steps = generate_action_steps_by_ai(data)
 
     saved_steps = save_action_steps_to_supabase(
