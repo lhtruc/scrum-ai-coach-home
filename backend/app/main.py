@@ -120,10 +120,24 @@ def read_root():
     return {"message": "Scrum AI Coach Backend is running"}
 
 @app.get("/api/auth/me")
-def get_current_user(current_user=Depends(verify_token)):
+def get_current_user(current_user = Depends(verify_token)):
+    # Try to find an account row to include role
+    account = supabase.table("accounts") \
+        .select("*") \
+        .eq("auth_uid", current_user.id) \
+        .execute()
+
+    role = None
+    if account.data:
+        role = account.data[0].get("role")
+
     return {
         "message": "Token is valid",
-        "user": {"id": current_user.id, "email": current_user.email}
+        "user": {
+            "id": current_user.id,
+            "email": current_user.email,
+            "role": role
+        }
     }
 
 @app.put("/api/users/role")
@@ -614,8 +628,7 @@ def sync_account(current_user=Depends(verify_token)):
 
     result = supabase.table("accounts").insert({
         "auth_uid": current_user.id,
-        "email": current_user.email,
-        "role": "Student"
+        "email": current_user.email
     }).execute()
 
     return {

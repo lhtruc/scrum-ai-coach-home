@@ -1,37 +1,42 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import Layout from "./components/Layout";
+import RequireAuth from "./components/RequireAuth";
+import RequireRole from "./components/RequireRole";
+
 import Welcome from "./pages/Welcome";
-import SkillAssessment from "./pages/SkillAssessment";
-
-// Import từ nhánh longfe1
-import ActionProgress from "./pages/ActionProgress";
-
-// Import từ nhánh main
 import Login from "./pages/Login";
 import RegisterPage from "./pages/RegisterPage";
+import Onboarding from "./pages/Onboarding";
+
+import SkillAssessment from "./pages/SkillAssessment";
 import ActionPlan from "./pages/ActionPlan";
+import ActionProgress from "./pages/ActionProgress";
+
 import Dashboard from "./pages/Dashboard";
 import ProgressDashboard from "./pages/ProgressDashboard";
 import Settings from "./pages/Settings";
-import RequireAuth from "./components/RequireAuth";
 
 export default function App() {
   return (
     <BrowserRouter>
-      {/* Bọc Layout ở ngoài cùng để quản lý chung (giống nhánh main) */}
       <Layout>
         <Routes>
-          {/* Các Route Public (Không cần đăng nhập) */}
+
+          {/* Public Routes */}
           <Route path="/welcome" element={<Welcome />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/onboarding" element={<Onboarding />} />
 
-          {/* Các Route Private (Cần đăng nhập - Bọc bằng RequireAuth) */}
+          {/* Protected Routes */}
           <Route
             path="/"
             element={
               <RequireAuth>
-                <SkillAssessment />
+                <RequireRole>
+                  <SkillAssessment />
+                </RequireRole>
               </RequireAuth>
             }
           />
@@ -40,7 +45,20 @@ export default function App() {
             path="/action-plan"
             element={
               <RequireAuth>
-                <ActionPlan />
+                <RequireRole>
+                  <ActionPlan />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/action-progress"
+            element={
+              <RequireAuth>
+                <RequireRole>
+                  <ActionProgress />
+                </RequireRole>
               </RequireAuth>
             }
           />
@@ -49,7 +67,9 @@ export default function App() {
             path="/dashboard"
             element={
               <RequireAuth>
-                <Dashboard />
+                <RequireRole>
+                  <Dashboard />
+                </RequireRole>
               </RequireAuth>
             }
           />
@@ -58,7 +78,9 @@ export default function App() {
             path="/progress"
             element={
               <RequireAuth>
-                <ProgressDashboard />
+                <RequireRole>
+                  <ProgressDashboard />
+                </RequireRole>
               </RequireAuth>
             }
           />
@@ -67,10 +89,13 @@ export default function App() {
             path="/settings"
             element={
               <RequireAuth>
-                <Settings />
+                <RequireRole>
+                  <Settings />
+                </RequireRole>
               </RequireAuth>
             }
           />
+
         </Routes>
       </Layout>
     </BrowserRouter>
