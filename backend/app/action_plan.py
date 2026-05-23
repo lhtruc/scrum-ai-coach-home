@@ -2,7 +2,7 @@ import os
 import json
 from pathlib import Path
 from typing import List
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from dotenv import load_dotenv
 from groq import Groq
 from pydantic import BaseModel, Field
@@ -44,6 +44,15 @@ class ActionGenerateRequest(BaseModel):
 
 class ActionStepStatusRequest(BaseModel):
     is_completed: bool
+
+
+class BulkUpdateActionStep(BaseModel):
+    id: int
+    deadline: str
+
+
+class BulkUpdateActionStepsRequest(BaseModel):
+    updates: List[BulkUpdateActionStep]
 
 
 def fallback_action_steps(goal_title: str) -> List[dict]:
@@ -312,6 +321,104 @@ def get_active_goal_stats(user_id: str | None = None) -> dict:
         "steps": steps
     }
 
+
+def revise_action_steps_by_ai(pending_steps: List[dict]) -> List[dict]:
+    if not pending_steps:
+        return []
+
+    today = date.today().isoformat()
+
+    prompt = f"""
+You are an AI learning coach. Today's date is {today}.
+
+You will be given a JSON array of pending action steps. Each step has these fields:
+    - id
+    - goal_id
+    - title
+    - description
+    - metric
+    - deadline (YYYY-MM-DD)
+    - is_completed
+
+Your task: update ONLY the `deadline` values so they become realistic future dates based on today.
+    - Keep the same number of steps and do not modify `id`, `goal_id`, `title`, `description`, `metric`, or `is_completed`.
+    - Deadlines must be in ISO format `YYYY-MM-DD` and strictly after today.
+    - Space out deadlines reasonably (e.g., a few days apart) and keep them achievable.
+    - Return strictly a JSON array of objects with exactly these fields in each object:
+        - id
+        - goal_id
+        - title
+        - description
+        - metric
+        - deadline
+        - is_completed
+    - Keep the original `id` and `goal_id` values for each returned object.
+Do NOT include any explanatory text.
+"""
+
+    try:
+        # Build the message with the steps payload
+        user_message = {
+            "role": "user",
+            "content": prompt + "\n\nInput steps:\n" + json.dumps(pending_steps, ensure_ascii=False)
+        }
+
+        response = groq_client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
+                {"role": "system", "content": "You are a helpful AI learning coach. Return valid JSON only."},
+                user_message
+            ],
+            temperature=0.2,
+        )
+
+        content = response.choices[0].message.content
+        revised = json.loads(content)
+
+        if isinstance(revised, list):
+            return revised
+
+    except Exception as e:
+        print("Groq revise error:", e)
+
+    # Fallback: shift any parseable deadline forward by 7 days from today sequentially
+    fallback = []
+    shift_days = 7
+    for i, step in enumerate(pending_steps):
+        parsed = _parse_deadline(step.get("deadline"))
+        base = parsed if parsed and parsed > date.today() else date.today()
+        new_deadline = (base + timedelta(days=shift_days * (i + 1))).isoformat()
+        fallback.append({
+            "id": step.get("id"),
+            "goal_id": step.get("goal_id"),
+            "title": step.get("title"),
+            "description": step.get("description"),
+            "metric": step.get("metric"),
+            "deadline": new_deadline,
+            "is_completed": step.get("is_completed", False)
+        })
+
+    return fallback
+
+
+def bulk_update_action_steps(updates: List[BulkUpdateActionStep]) -> List[dict]:
+    updated_steps = []
+
+    for item in updates:
+        response = (
+            supabase
+            .table("action_steps")
+            .update({
+                "deadline": item.deadline
+            })
+            .eq("id", item.id)
+            .execute()
+        )
+
+        if response.data:
+            updated_steps.extend(response.data)
+
+    return updated_steps
 def parse_date_value(value):
     if value is None:
         return None
