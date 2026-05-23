@@ -16,6 +16,7 @@ import ActionProgress from "./pages/ActionProgress";
 import Dashboard from "./pages/Dashboard";
 import ProgressDashboard from "./pages/ProgressDashboard";
 import Settings from "./pages/Settings";
+import Feedback from "./pages/Feedback";
 
 export default function App() {
   return (
@@ -80,6 +81,17 @@ export default function App() {
               <RequireAuth>
                 <RequireRole>
                   <ProgressDashboard />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/feedback"
+            element={
+              <RequireAuth>
+                <RequireRole>
+                  <Feedback />
                 </RequireRole>
               </RequireAuth>
             }

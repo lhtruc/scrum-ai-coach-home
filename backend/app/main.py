@@ -234,6 +234,21 @@ def get_feedback_history(current_user=Depends(verify_token)):
         "feedbacks": result.data
     }
 
+
+
+@app.get("/api/feedback/current")
+def get_current_feedback(current_user = Depends(verify_token)):
+    """Return the current week's feedback summary for the authenticated user.
+
+    This is a lightweight endpoint used by the frontend during initial rollout.
+    It returns an 'empty week' structure when no feedback has been generated yet.
+    """
+    return {
+        "is_empty_week": True,
+        "progress_summary": None,
+        "strengths": [],
+        "areas": []
+    }
 # =========================
 # API: SKILLS
 # =========================
