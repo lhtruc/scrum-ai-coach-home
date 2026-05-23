@@ -16,6 +16,8 @@ import ActionProgress from "./pages/ActionProgress";
 import Dashboard from "./pages/Dashboard";
 import ProgressDashboard from "./pages/ProgressDashboard";
 import Settings from "./pages/Settings";
+import RequireAuth from "./components/RequireAuth";
+import SkillProfile from "./pages/SkillProfile";
 
 export default function App() {
   return (
@@ -96,6 +98,15 @@ export default function App() {
             }
           />
 
+          
+          <Route
+            path="/skill-profile"
+            element={
+              <RequireAuth>
+                <SkillProfile />
+              </RequireAuth>
+            }
+          />
         </Routes>
       </Layout>
     </BrowserRouter>
