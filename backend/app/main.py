@@ -34,7 +34,8 @@ from app.action_plan import (
     generate_action_steps_by_ai,
     save_action_steps_to_supabase,
     update_action_step_status,
-    get_action_steps_by_goal
+    get_action_steps_by_goal,
+    get_active_goal_stats
 )
 app = FastAPI()
 
@@ -220,5 +221,23 @@ def get_goal_action_steps(goal_id: int):
         "total_steps": result["total_steps"],
         "completed_steps": result["completed_steps"],
         "progress_percentage": result["progress_percentage"],
+        "steps": result["steps"]
+    }
+
+@app.get("/api/goals/active/stats")
+def get_active_goal_dashboard_stats(user_id: str | None = None):
+    result = get_active_goal_stats(user_id)
+
+    return {
+        "message": "Active goal statistics fetched successfully",
+        "active_goal": result["active_goal"],
+        "statistics": {
+            "total_steps": result["total_steps"],
+            "completed_steps": result["completed_steps"],
+            "pending_steps": result["pending_steps"],
+            "completion_percentage": result["completion_percentage"],
+            "goal_deadline": result["goal_deadline"],
+            "days_remaining": result["days_remaining"]
+        },
         "steps": result["steps"]
     }
