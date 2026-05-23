@@ -58,7 +58,6 @@ class SkillRating(BaseModel):
     rating_level: int
 
 class SkillAssessmentRequest(BaseModel):
-    user_id: str
     ratings: List[SkillRating]
 
 # =========================
@@ -110,11 +109,18 @@ def get_skills():
     }
 
 @app.get("/api/skills/profile")
-def get_skill_profile(user_id: str):
-    result = supabase.table("user_skills").select("*").eq("user_id", user_id).execute()
+def get_skill_profile(current_user = Depends(verify_token)):
+    user_id = current_user.id
+
+    result = supabase.table("user_skills") \
+        .select("*") \
+        .eq("user_id", user_id) \
+        .order("skills_name") \
+        .execute()
+
     if not result.data:
         return {"message": "No profile found", "summary": None}
-    
+
     summary = [{
         "skill_name": item["skills_name"],
         "rating_level": item["rating_level"],
@@ -123,18 +129,26 @@ def get_skill_profile(user_id: str):
 
     return {
         "message": "Skill profile fetched successfully",
-        "summary": {"user_id": user_id, "ratings": summary}
+        "summary": {
+            "user_id": user_id,
+            "ratings": summary
+        }
     }
 
 @app.post("/api/skills/assess")
-def assess_skills(data: SkillAssessmentRequest):
+def assess_skills(data: SkillAssessmentRequest, current_user = Depends(verify_token)):
+    user_id = current_user.id
+
     rows = [{
-        "user_id": data.user_id,
+        "user_id": user_id,
         "skills_name": item.skill_name,
         "rating_level": item.rating_level
     } for item in data.ratings]
 
-    supabase.table("user_skills").insert(rows).execute()
+    result = supabase.table("user_skills").upsert(
+        rows,
+        on_conflict="user_id,skills_name"
+    ).execute()
 
     summary = [{
         "skill_name": item.skill_name,
@@ -144,7 +158,8 @@ def assess_skills(data: SkillAssessmentRequest):
 
     return {
         "message": "Skill assessment saved successfully",
-        "summary": {"user_id": data.user_id, "ratings": summary}
+        "summary": {"user_id": user_id, "ratings": summary},
+        "saved_rows": result.data
     }
 
 # =========================
