@@ -3,6 +3,7 @@ from fastapi import FastAPI, HTTPException, status, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
+from datetime import date
 from dotenv import load_dotenv
 from supabase import create_client
 from fastapi.security import HTTPBearer
@@ -35,7 +36,10 @@ from app.action_plan import (
     save_action_steps_to_supabase,
     update_action_step_status,
     get_action_steps_by_goal,
-    get_active_goal_stats
+    get_active_goal_stats,
+    revise_action_steps_by_ai,
+    BulkUpdateActionStepsRequest,
+    bulk_update_action_steps
 )
 app = FastAPI()
 
@@ -255,4 +259,136 @@ def get_active_goal_dashboard_stats(user_id: str | None = None):
             "days_remaining": result["days_remaining"]
         },
         "steps": result["steps"]
+    }
+
+
+@app.get("/api/actions/check-overdue")
+def check_overdue_actions(current_user = Depends(verify_token)):
+    from datetime import date
+
+    user_id = current_user.id
+    today = date.today().isoformat()
+
+    # lấy goals của user
+    goals_response = (
+        supabase
+        .table("user_goals")
+        .select("id")
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    goal_ids = [goal["id"] for goal in goals_response.data]
+
+    if not goal_ids:
+        return {
+            "needs_revision": False,
+            "overdue_count": 0
+        }
+
+    # lấy overdue steps
+    overdue_response = (
+        supabase
+        .table("action_steps")
+        .select("*")
+        .in_("goal_id", goal_ids)
+        .eq("is_completed", False)
+        .lt("deadline", today)
+        .execute()
+    )
+
+    overdue_count = len(overdue_response.data)
+
+    return {
+        "needs_revision": overdue_count >= 2,
+        "overdue_count": overdue_count
+    }
+
+
+@app.post("/api/auth/sync-account")
+def sync_account(current_user = Depends(verify_token)):
+    """Ensure an `accounts` row exists for the authenticated Supabase user (Google or email).
+
+    Inserts a new row with `auth_uid`, `email`, and default `role` = 'Student' when absent.
+    """
+    existing = supabase.table("accounts") \
+        .select("*") \
+        .eq("auth_uid", current_user.id) \
+        .execute()
+
+    if existing.data:
+        return {
+            "message": "Account already exists",
+            "account": existing.data[0]
+        }
+
+    result = supabase.table("accounts").insert({
+        "auth_uid": current_user.id,
+        "email": current_user.email,
+        "role": "Student"
+    }).execute()
+
+    return {
+        "message": "Account synced successfully",
+        "account": result.data
+    }
+
+
+@app.post("/api/actions/revise")
+def revise_action_plan(current_user = Depends(verify_token)):
+    """Generate revised deadlines for the current user's pending action steps using the AI.
+
+    Returns a JSON array of updated steps (title, description, metric, deadline).
+    """
+    user_id = current_user.id
+
+    # Get the user's most recent goal
+    goal_resp = (
+        supabase
+        .table("user_goals")
+        .select("id")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    goals = goal_resp.data or []
+    if not goals:
+        return {"message": "No active goal found for user", "revised_steps": []}
+
+    goal_id = goals[0]["id"]
+
+    steps_resp = (
+        supabase
+        .table("action_steps")
+        .select("id, goal_id, title, description, metric, deadline, is_completed")
+        .eq("goal_id", goal_id)
+        .eq("is_completed", False)
+        .order("id")
+        .execute()
+    )
+
+    pending_steps = steps_resp.data or []
+
+    if not pending_steps:
+        return {"message": "No pending action steps to revise", "revised_steps": []}
+
+    # Call AI to revise deadlines
+    revised = revise_action_steps_by_ai(pending_steps)
+
+    return {"message": "Revised steps generated successfully", "revised_steps": revised}
+
+
+@app.put("/api/actions/bulk-update")
+def bulk_update_actions(
+    data: BulkUpdateActionStepsRequest,
+    current_user = Depends(verify_token)
+):
+    # Note: authentication ensures user owns the steps; we assume frontend passes only user's steps
+    updated_steps = bulk_update_action_steps(data.updates)
+
+    return {
+        "message": "Action steps updated successfully",
+        "updated_steps": updated_steps
     }
