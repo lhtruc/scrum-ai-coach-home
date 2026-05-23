@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import assessmentApi from '../services/assessmentApi';
 import './SkillAssessment.css'; 
 
 export default function GoalSelection({ userId, userName, skillName, ratingLevel, onResetFlow }) {
+  const navigate = useNavigate();
   const [view, setView] = useState('LOADING'); // LOADING, SELECTION, PROCESSING, CONFIRM, SAVING, COMPLETE
   const [suggestedGoals, setSuggestedGoals] = useState([]);
   const [activeGoal, setActiveGoal] = useState(null); // Lưu trữ mục tiêu được chọn để xác nhận
+  const [savedGoalId, setSavedGoalId] = useState(null); // ID trả về sau khi lưu vào Supabase
   
   const [selectionType, setSelectionType] = useState(null); // 'SUGGESTED' hoặc 'CUSTOM'
   const [selectedGoalIndex, setSelectedGoalIndex] = useState(null);
@@ -122,7 +125,11 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
     };
 
     try {
-      await assessmentApi.confirmGoal(payload);
+      const result = await assessmentApi.confirmGoal(payload);
+      // Capture the returned goal ID if the backend sends it back
+      if (result && result.saved_goal && result.saved_goal.id) {
+        setSavedGoalId(result.saved_goal.id);
+      }
       setView('COMPLETE');
     } catch (error) {
       alert("Failed to save goal to database!");
@@ -203,9 +210,27 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
           <p className="subtitle" style={{ marginBottom: '30px' }}>
             Your learning sprint for <strong>{activeGoal.goal_title}</strong> has been successfully registered in Supabase.
           </p>
-          <button className="btn btn-primary" onClick={onResetFlow}>
-            Explore More Skills
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {savedGoalId && (
+              <button
+                id="view-action-plan-btn"
+                className="btn btn-primary"
+                onClick={() => navigate('/action-plan', {
+                  state: {
+                    goalId: savedGoalId,
+                    goalTitle: activeGoal.goal_title,
+                    goalTechnique: activeGoal.goal_technique || skillName,
+                    feasibility: activeGoal.feasibility
+                  }
+                })}
+              >
+                📋 View SMART Action Plan
+              </button>
+            )}
+            <button className="btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={onResetFlow}>
+              Explore More Skills
+            </button>
+          </div>
         </div>
       </div>
     );

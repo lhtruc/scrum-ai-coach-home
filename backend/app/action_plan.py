@@ -2,7 +2,7 @@ import os
 import json
 from pathlib import Path
 from typing import List
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from dotenv import load_dotenv
 from groq import Groq
 from pydantic import BaseModel, Field
@@ -44,6 +44,15 @@ class ActionGenerateRequest(BaseModel):
 
 class ActionStepStatusRequest(BaseModel):
     is_completed: bool
+
+
+class BulkUpdateActionStep(BaseModel):
+    id: int
+    deadline: str
+
+
+class BulkUpdateActionStepsRequest(BaseModel):
+    updates: List[BulkUpdateActionStep]
 
 
 def fallback_action_steps(goal_title: str) -> List[dict]:
@@ -181,6 +190,22 @@ def save_action_steps_to_supabase(goal_id: int, steps: List[dict]) -> List[dict]
     return response.data
 
 
+def validate_goal_exists(goal_id: int) -> None:
+    """Check if goal_id exists in user_goals before generating action plan."""
+    response = (
+        supabase
+        .table("user_goals")
+        .select("id")
+        .eq("id", goal_id)
+        .execute()
+    )
+    if not response.data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Goal with id {goal_id} does not exist. Please confirm your goal first."
+        )
+
+
 def update_action_step_status(step_id: int, is_completed: bool) -> dict:
     response = (
         supabase
@@ -310,4 +335,247 @@ def get_active_goal_stats(user_id: str | None = None) -> dict:
         "goal_deadline": goal_deadline.isoformat() if goal_deadline else None,
         "days_remaining": days_remaining,
         "steps": steps
+    }
+
+
+def revise_action_steps_by_ai(pending_steps: List[dict]) -> List[dict]:
+    if not pending_steps:
+        return []
+
+    today = date.today().isoformat()
+
+    prompt = f"""
+You are an AI learning coach. Today's date is {today}.
+
+You will be given a JSON array of pending action steps. Each step has these fields:
+    - id
+    - goal_id
+    - title
+    - description
+    - metric
+    - deadline (YYYY-MM-DD)
+    - is_completed
+
+Your task: update ONLY the `deadline` values so they become realistic future dates based on today.
+    - Keep the same number of steps and do not modify `id`, `goal_id`, `title`, `description`, `metric`, or `is_completed`.
+    - Deadlines must be in ISO format `YYYY-MM-DD` and strictly after today.
+    - Space out deadlines reasonably (e.g., a few days apart) and keep them achievable.
+    - Return strictly a JSON array of objects with exactly these fields in each object:
+        - id
+        - goal_id
+        - title
+        - description
+        - metric
+        - deadline
+        - is_completed
+    - Keep the original `id` and `goal_id` values for each returned object.
+Do NOT include any explanatory text.
+"""
+
+    try:
+        # Build the message with the steps payload
+        user_message = {
+            "role": "user",
+            "content": prompt + "\n\nInput steps:\n" + json.dumps(pending_steps, ensure_ascii=False)
+        }
+
+        response = groq_client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
+                {"role": "system", "content": "You are a helpful AI learning coach. Return valid JSON only."},
+                user_message
+            ],
+            temperature=0.2,
+        )
+
+        content = response.choices[0].message.content
+        revised = json.loads(content)
+
+        if isinstance(revised, list):
+            return revised
+
+    except Exception as e:
+        print("Groq revise error:", e)
+
+    # Fallback: shift any parseable deadline forward by 7 days from today sequentially
+    fallback = []
+    shift_days = 7
+    for i, step in enumerate(pending_steps):
+        parsed = _parse_deadline(step.get("deadline"))
+        base = parsed if parsed and parsed > date.today() else date.today()
+        new_deadline = (base + timedelta(days=shift_days * (i + 1))).isoformat()
+        fallback.append({
+            "id": step.get("id"),
+            "goal_id": step.get("goal_id"),
+            "title": step.get("title"),
+            "description": step.get("description"),
+            "metric": step.get("metric"),
+            "deadline": new_deadline,
+            "is_completed": step.get("is_completed", False)
+        })
+
+    return fallback
+
+
+def bulk_update_action_steps(updates: List[BulkUpdateActionStep]) -> List[dict]:
+    updated_steps = []
+
+    for item in updates:
+        response = (
+            supabase
+            .table("action_steps")
+            .update({
+                "deadline": item.deadline
+            })
+            .eq("id", item.id)
+            .execute()
+        )
+
+        if response.data:
+            updated_steps.extend(response.data)
+
+    return updated_steps
+def parse_date_value(value):
+    if value is None:
+        return None
+
+    if isinstance(value, date):
+        return value
+
+    if isinstance(value, str):
+        try:
+            return datetime.strptime(value[:10], "%Y-%m-%d").date()
+        except ValueError:
+            return None
+
+    return None
+
+
+def get_user_profile_for_dashboard(user_id: str, active_goal: dict) -> dict:
+    default_profile = {
+        "user_id": user_id,
+        "name": active_goal.get("name") or "Student",
+        "role": "Employee/Student"
+    }
+
+    try:
+        account_response = (
+            supabase
+            .table("accounts")
+            .select("user_id, name, role")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+
+        accounts = account_response.data or []
+
+        if not accounts:
+            return default_profile
+
+        account = accounts[0]
+
+        return {
+            "user_id": user_id,
+            "name": account.get("name") or default_profile["name"],
+            "role": account.get("role") or default_profile["role"]
+        }
+
+    except Exception:
+        return default_profile
+
+
+def get_next_pending_action_step(steps: list[dict]) -> dict | None:
+    pending_steps = [
+        step for step in steps
+        if step.get("is_completed") is False
+    ]
+
+    if not pending_steps:
+        return None
+
+    pending_steps_with_deadline = []
+
+    for step in pending_steps:
+        parsed_deadline = parse_date_value(step.get("deadline"))
+
+        pending_steps_with_deadline.append({
+            "step": step,
+            "parsed_deadline": parsed_deadline
+        })
+
+    pending_steps_with_deadline.sort(
+        key=lambda item: item["parsed_deadline"] or date.max
+    )
+
+    return pending_steps_with_deadline[0]["step"]
+
+
+def get_dashboard_summary(user_id: str | None = None) -> dict:
+    goal_query = (
+        supabase
+        .table("user_goals")
+        .select("id, user_id, name, goal_title, goal_technique, feasibility, created_at")
+        .order("created_at", desc=True)
+        .limit(1)
+    )
+
+    if user_id:
+        goal_query = goal_query.eq("user_id", user_id)
+
+    goal_response = goal_query.execute()
+    goals = goal_response.data or []
+
+    if not goals:
+        raise HTTPException(
+            status_code=404,
+            detail="No active goal found."
+        )
+
+    active_goal = goals[0]
+    active_goal_id = active_goal["id"]
+    active_user_id = active_goal.get("user_id")
+
+    steps_response = (
+        supabase
+        .table("action_steps")
+        .select("id, goal_id, title, description, metric, deadline, is_completed, created_at")
+        .eq("goal_id", active_goal_id)
+        .order("deadline")
+        .execute()
+    )
+
+    steps = steps_response.data or []
+
+    total_steps = len(steps)
+    completed_steps = sum(1 for step in steps if step.get("is_completed") is True)
+    pending_steps = total_steps - completed_steps
+
+    if total_steps == 0:
+        progress_percentage = 0
+    else:
+        progress_percentage = round((completed_steps / total_steps) * 100, 2)
+
+    next_pending_step = get_next_pending_action_step(steps)
+
+    user_profile = get_user_profile_for_dashboard(
+        user_id=active_user_id,
+        active_goal=active_goal
+    )
+
+    return {
+        "user": user_profile,
+        "current_goal": {
+            "id": active_goal["id"],
+            "title": active_goal["goal_title"],
+            "technique": active_goal["goal_technique"],
+            "feasibility": active_goal["feasibility"]
+        },
+        "progress": {
+            "total_steps": total_steps,
+            "completed_steps": completed_steps,
+            "pending_steps": pending_steps,
+            "progress_percentage": progress_percentage
+        },
+        "next_pending_action_step": next_pending_step
     }
