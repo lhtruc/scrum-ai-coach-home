@@ -79,6 +79,12 @@ class LoginRequest(BaseModel):
 class RoleUpdateRequest(BaseModel):
     role: str
 
+class ProfileUpdateRequest(BaseModel):
+    display_name: str | None = None
+    role: str | None = None
+
+class PasswordUpdateRequest(BaseModel):
+    new_password: str
 class FeedbackResponse(BaseModel):
     message: str
     feedback: dict
@@ -162,6 +168,75 @@ def update_user_role(data: RoleUpdateRequest, current_user=Depends(verify_token)
             "email": current_user.email,
             "role": data.role
         }
+    }
+
+@app.put("/api/auth/password")
+def update_password(
+    data: PasswordUpdateRequest,
+    current_user=Depends(verify_token)
+):
+    if len(data.new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 8 characters"
+        )
+
+    try:
+        supabase.auth.update_user({
+            "password": data.new_password
+        })
+
+        return {
+            "message": "Password updated successfully"
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@app.put("/api/users/profile")
+def update_user_profile(
+    data: ProfileUpdateRequest,
+    current_user=Depends(verify_token)
+):
+    update_data = {}
+
+    if data.display_name is not None:
+        update_data["display_name"] = data.display_name
+
+    if data.role is not None:
+        if data.role not in ["Employee", "Student"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Role must be either Employee or Student"
+            )
+        update_data["role"] = data.role
+
+    if not update_data:
+        raise HTTPException(
+            status_code=400,
+            detail="No profile fields provided"
+        )
+
+    result = (
+        supabase
+        .table("accounts")
+        .update(update_data)
+        .eq("auth_uid", current_user.id)
+        .execute()
+    )
+
+    if not result.data:
+        raise HTTPException(
+            status_code=404,
+            detail="User profile not found"
+        )
+
+    return {
+        "message": "Profile updated successfully",
+        "profile": result.data[0]
     }
 
 @app.post("/api/auth/login")
@@ -678,4 +753,17 @@ def bulk_update_actions(data: BulkUpdateActionStepsRequest, current_user=Depends
         "updated_steps": updated_steps
     }
 
+    return {
+        "message": "Dashboard summary fetched successfully",
+        "user": result["user"],
+        "current_goal": result["current_goal"],
+        "progress": result["progress"],
+        "next_pending_action_step": result["next_pending_action_step"]
+    }
+
+@app.post("/api/auth/logout")
+def logout(current_user=Depends(verify_token)):
+    return {
+        "message": "Logout successful. Please clear token on client side."
+    }
 # ĐÃ BỎ HÀM GET SUMMARY 
