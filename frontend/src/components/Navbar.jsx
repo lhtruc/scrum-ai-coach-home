@@ -1,6 +1,6 @@
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Navbar.css';
 import { useEffect, useState } from 'react';
-import { useLocation, Link, useNavigate } from 'react-router-dom';
 
 export default function Navbar() {
   const location = useLocation();
@@ -42,6 +42,10 @@ export default function Navbar() {
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('user_profile');
+    
+    // Đảm bảo trình duyệt nhận biết ngay lập tức việc mất token
+    window.dispatchEvent(new Event('storage')); 
+    
     setToken(null);
     navigate('/login');
   };
@@ -49,20 +53,56 @@ export default function Navbar() {
   return (
     <nav className="navbar">
       <div className="nav-container">
-        <div className="nav-brand">
+        
+        <Link to="/" className="nav-brand" style={{ color: 'inherit', textDecoration: 'none' }}>
           <span className="logo-icon">⚡</span>
-          <Link to="/" style={{ color: 'inherit', textDecoration: 'none' }}>AI Coach</Link>
-        </div>
-        <div className="nav-profile">
-          {token ? (
+          AI Coach
+        </Link>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          
+          {/* LOGIC CHUẨN: Cả Dashboard và Progress đều chỉ hiện khi ĐÃ ĐĂNG NHẬP */}
+          {token && (
             <>
               <span className="user-name">{profile?.email ? profile.email : 'You'}</span>
               <span style={{ marginLeft: 8, color: '#666' }}>{profile?.role ? `(${profile.role})` : ''}</span>
               <button className="btn" onClick={handleLogout} style={{ marginLeft: '8px' }}>Logout</button>
+              <Link to="/dashboard" style={{
+                textDecoration: 'none',
+                color: 'var(--text-main)',
+                fontSize: '14px',
+                fontWeight: 700
+              }}>
+                Dashboard
+              </Link>
+
+              <Link to="/progress" style={{
+                textDecoration: 'none',
+                color: 'var(--text-main)',
+                fontSize: '14px',
+                fontWeight: 700
+              }}>
+                Progress
+              </Link>
             </>
-          ) : (
-            <Link to="/login" className="btn" style={{ textDecoration: 'none' }}>Login</Link>
           )}
+
+          <div className="nav-profile">
+            {token ? (
+              <>
+                <span className="user-name">My Workspace</span>
+                <div className="avatar">T</div>
+                <button className="btn" onClick={handleLogout} style={{ marginLeft: '8px' }}>
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link to="/login" className="btn" style={{ textDecoration: 'none' }}>
+                Login
+              </Link>
+            )}
+          </div>
+
         </div>
       </div>
     </nav>
