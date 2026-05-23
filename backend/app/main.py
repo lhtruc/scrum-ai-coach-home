@@ -39,7 +39,7 @@ from app.action_plan import (
     update_action_step_status,
     get_action_steps_by_goal,
     get_active_goal_stats,
-    validate_goal_exists
+    validate_goal_exists,
     revise_action_steps_by_ai,
     BulkUpdateActionStepsRequest,
     bulk_update_action_steps,
@@ -75,6 +75,12 @@ class LoginRequest(BaseModel):
 class RoleUpdateRequest(BaseModel):
     role: str
 
+class ProfileUpdateRequest(BaseModel):
+    display_name: str | None = None
+    role: str | None = None
+
+class PasswordUpdateRequest(BaseModel):
+    new_password: str
 # =========================
 # UTILS
 # =========================
@@ -154,6 +160,75 @@ def update_user_role(
             "email": current_user.email,
             "role": data.role
         }
+    }
+
+@app.put("/api/auth/password")
+def update_password(
+    data: PasswordUpdateRequest,
+    current_user=Depends(verify_token)
+):
+    if len(data.new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 8 characters"
+        )
+
+    try:
+        supabase.auth.update_user({
+            "password": data.new_password
+        })
+
+        return {
+            "message": "Password updated successfully"
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@app.put("/api/users/profile")
+def update_user_profile(
+    data: ProfileUpdateRequest,
+    current_user=Depends(verify_token)
+):
+    update_data = {}
+
+    if data.display_name is not None:
+        update_data["display_name"] = data.display_name
+
+    if data.role is not None:
+        if data.role not in ["Employee", "Student"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Role must be either Employee or Student"
+            )
+        update_data["role"] = data.role
+
+    if not update_data:
+        raise HTTPException(
+            status_code=400,
+            detail="No profile fields provided"
+        )
+
+    result = (
+        supabase
+        .table("accounts")
+        .update(update_data)
+        .eq("auth_uid", current_user.id)
+        .execute()
+    )
+
+    if not result.data:
+        raise HTTPException(
+            status_code=404,
+            detail="User profile not found"
+        )
+
+    return {
+        "message": "Profile updated successfully",
+        "profile": result.data[0]
     }
 
 @app.post("/api/auth/login")
@@ -278,7 +353,6 @@ def assess_skills(data: SkillAssessmentRequest, current_user = Depends(verify_to
     return {
         "message": "Skill assessment saved successfully",
         "summary": {"user_id": user_id, "ratings": summary},
-        "saved_rows": result.data
     }
 
 # =========================
@@ -519,4 +593,10 @@ def get_main_dashboard_summary(user_id: str | None = None):
         "current_goal": result["current_goal"],
         "progress": result["progress"],
         "next_pending_action_step": result["next_pending_action_step"]
+    }
+
+@app.post("/api/auth/logout")
+def logout(current_user=Depends(verify_token)):
+    return {
+        "message": "Logout successful. Please clear token on client side."
     }
