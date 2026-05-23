@@ -39,7 +39,8 @@ from app.action_plan import (
     get_active_goal_stats,
     revise_action_steps_by_ai,
     BulkUpdateActionStepsRequest,
-    bulk_update_action_steps
+    bulk_update_action_steps,
+    get_dashboard_summary
 )
 app = FastAPI()
 
@@ -391,4 +392,16 @@ def bulk_update_actions(
     return {
         "message": "Action steps updated successfully",
         "updated_steps": updated_steps
+    }
+  
+@app.get("/api/dashboard/summary")
+def get_main_dashboard_summary(user_id: str | None = None):
+    result = get_dashboard_summary(user_id)
+
+    return {
+        "message": "Dashboard summary fetched successfully",
+        "user": result["user"],
+        "current_goal": result["current_goal"],
+        "progress": result["progress"],
+        "next_pending_action_step": result["next_pending_action_step"]
     }
