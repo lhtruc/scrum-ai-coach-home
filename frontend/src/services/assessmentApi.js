@@ -46,7 +46,34 @@ const assessmentApi = {
     });
     if (!response.ok) throw new Error('Failed to confirm and save goal');
     return await response.json();
+  },
+
+  getGoalActionSteps: async (goalId) => {
+    const response = await fetch(`${API_BASE_URL}/goals/${goalId}/actions`);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch goal action steps');
+    }
+
+    return await response.json();
+  },
+
+  updateActionStepStatus: async (stepId, isCompleted) => {
+    const response = await fetch(`${API_BASE_URL}/actions/${stepId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        is_completed: isCompleted
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update action step status');
+    }
+
+    return await response.json();
   }
 };
+
 
 export default assessmentApi;
