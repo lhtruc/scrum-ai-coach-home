@@ -1,8 +1,13 @@
 import './Navbar.css';
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 export default function Navbar() {
+  // hide navbar for welcome, login, register pages
+  const location = useLocation();
+  const hiddenPaths = ['/welcome', '/login', '/register'];
+  if (hiddenPaths.includes(location.pathname)) return null;
+
   const [token, setToken] = useState(null);
   const navigate = useNavigate();
 

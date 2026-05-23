@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
+import Welcome from "./pages/Welcome";
 import SkillAssessment from "./pages/SkillAssessment";
 import Login from "./pages/Login";
 import RegisterPage from "./pages/RegisterPage";
@@ -11,6 +12,7 @@ export default function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
+          <Route path="/welcome" element={<Welcome />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<RegisterPage />} />
 
