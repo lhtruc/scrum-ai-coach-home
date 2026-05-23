@@ -5,6 +5,9 @@ import SkillAssessment from "./pages/SkillAssessment";
 import Login from "./pages/Login";
 import RegisterPage from "./pages/RegisterPage";
 import ActionPlan from "./pages/ActionPlan";
+import Dashboard from "./pages/Dashboard";
+import ProgressDashboard from "./pages/ProgressDashboard";
+import Settings from "./pages/Settings";
 import RequireAuth from "./components/RequireAuth";
 
 export default function App() {
@@ -30,6 +33,33 @@ export default function App() {
             element={
               <RequireAuth>
                 <ActionPlan />
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/dashboard"
+            element={
+              <RequireAuth>
+                <Dashboard />
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/progress"
+            element={
+              <RequireAuth>
+                <ProgressDashboard />
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/settings"
+            element={
+              <RequireAuth>
+                <Settings />
               </RequireAuth>
             }
           />

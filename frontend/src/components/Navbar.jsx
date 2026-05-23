@@ -1,6 +1,6 @@
 import './Navbar.css';
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 
 export default function Navbar() {
   // hide navbar for welcome, login, register pages
@@ -32,15 +32,22 @@ export default function Navbar() {
           <span className="logo-icon">⚡</span>
           <Link to="/" style={{ color: 'inherit', textDecoration: 'none' }}>AI Coach</Link>
         </div>
-        <div className="nav-profile">
-          {token ? (
-            <>
-              <span className="user-name">You</span>
-              <button className="btn" onClick={handleLogout} style={{ marginLeft: '8px' }}>Logout</button>
-            </>
-          ) : (
-            <Link to="/login" className="btn" style={{ textDecoration: 'none' }}>Login</Link>
+        <div className="nav-menu" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          {token && (
+            <Link to="/dashboard" style={{ color: 'var(--text-main)', textDecoration: 'none', fontWeight: 600, fontSize: '14px' }}>
+              Dashboard
+            </Link>
           )}
+          <div className="nav-profile">
+            {token ? (
+              <>
+                <span className="user-name">You</span>
+                <button className="btn" onClick={handleLogout} style={{ marginLeft: '8px' }}>Logout</button>
+              </>
+            ) : (
+              <Link to="/login" className="btn" style={{ textDecoration: 'none' }}>Login</Link>
+            )}
+          </div>
         </div>
       </div>
     </nav>

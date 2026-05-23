@@ -243,3 +243,65 @@ def get_active_goal_dashboard_stats(user_id: str | None = None):
         },
         "steps": result["steps"]
     }
+
+@app.get("/api/dashboard/summary")
+def get_main_dashboard_summary(user_id: str | None = None):
+    goal_query = (
+        supabase
+        .table("user_goals")
+        .select("id, user_id, name, goal_title, goal_technique, feasibility, created_at")
+        .order("created_at", desc=True)
+        .limit(1)
+    )
+    if user_id:
+        goal_query = goal_query.eq("user_id", user_id)
+        
+    try:
+        goal_response = goal_query.execute()
+        goals = goal_response.data or []
+    except Exception as e:
+        print("Error fetching goals for summary:", e)
+        goals = []
+    
+    user_name = "User"
+    user_role = "Employee/Student"
+    current_goal = None
+    progress_percentage = 0
+    next_action_step = None
+    
+    if goals:
+        active_goal = goals[0]
+        user_name = active_goal.get("name") or "User"
+        current_goal = active_goal.get("goal_title") or active_goal.get("name")
+        goal_id = active_goal["id"]
+        
+        try:
+            steps_response = (
+                supabase
+                .table("action_steps")
+                .select("id, title, is_completed, deadline")
+                .eq("goal_id", goal_id)
+                .order("id")
+                .execute()
+            )
+            steps = steps_response.data or []
+        except Exception as e:
+            print("Error fetching action steps for summary:", e)
+            steps = []
+        
+        total_steps = len(steps)
+        completed_steps = sum(1 for step in steps if step.get("is_completed") is True)
+        if total_steps > 0:
+            progress_percentage = round((completed_steps / total_steps) * 100)
+            
+        incomplete_steps = [step for step in steps if not step.get("is_completed")]
+        if incomplete_steps:
+            next_action_step = incomplete_steps[0].get("title")
+            
+    return {
+        "user_name": user_name,
+        "user_role": user_role,
+        "current_goal": current_goal,
+        "progress_percentage": progress_percentage,
+        "next_action_step": next_action_step or ("None (All steps completed!)" if current_goal else "No active goal yet")
+    }
