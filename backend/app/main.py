@@ -39,6 +39,7 @@ from app.action_plan import (
     update_action_step_status,
     get_action_steps_by_goal,
     get_active_goal_stats,
+    validate_goal_exists
     revise_action_steps_by_ai,
     BulkUpdateActionStepsRequest,
     bulk_update_action_steps,
@@ -266,10 +267,7 @@ def assess_skills(data: SkillAssessmentRequest, current_user = Depends(verify_to
         "rating_level": item.rating_level
     } for item in data.ratings]
 
-    result = supabase.table("user_skills").upsert(
-        rows,
-        on_conflict="user_id,skills_name"
-    ).execute()
+    supabase.table("user_skills").upsert(rows).execute()
 
     summary = [{
         "skill_name": item.skill_name,
@@ -321,6 +319,7 @@ def confirm_goal(data: GoalConfirmRequest):
 
 @app.post("/api/actions/generate")
 def generate_action_plan(data: ActionGenerateRequest):
+    validate_goal_exists(data.goal_id)
     steps = generate_action_steps_by_ai(data)
 
     saved_steps = save_action_steps_to_supabase(

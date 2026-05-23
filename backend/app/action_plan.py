@@ -190,6 +190,22 @@ def save_action_steps_to_supabase(goal_id: int, steps: List[dict]) -> List[dict]
     return response.data
 
 
+def validate_goal_exists(goal_id: int) -> None:
+    """Check if goal_id exists in user_goals before generating action plan."""
+    response = (
+        supabase
+        .table("user_goals")
+        .select("id")
+        .eq("id", goal_id)
+        .execute()
+    )
+    if not response.data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Goal with id {goal_id} does not exist. Please confirm your goal first."
+        )
+
+
 def update_action_step_status(step_id: int, is_completed: bool) -> dict:
     response = (
         supabase
