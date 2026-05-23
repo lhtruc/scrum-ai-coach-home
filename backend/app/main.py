@@ -39,7 +39,7 @@ from app.action_plan import (
     update_action_step_status,
     get_action_steps_by_goal,
     get_active_goal_stats,
-    validate_goal_exists
+    validate_goal_exists,
     revise_action_steps_by_ai,
     BulkUpdateActionStepsRequest,
     bulk_update_action_steps,
@@ -278,7 +278,6 @@ def assess_skills(data: SkillAssessmentRequest, current_user = Depends(verify_to
     return {
         "message": "Skill assessment saved successfully",
         "summary": {"user_id": user_id, "ratings": summary},
-        "saved_rows": result.data
     }
 
 # =========================
