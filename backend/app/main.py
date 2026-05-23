@@ -291,7 +291,6 @@ def assess_skills(data: SkillAssessmentRequest, current_user=Depends(verify_toke
     return {
         "message": "Skill assessment saved successfully",
         "summary": {"user_id": user_id, "ratings": summary},
-        "saved_rows": result.data
     }
 
 # =========================
