@@ -2,6 +2,10 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import './Navbar.css';
 
+// ==========================================
+// [Accept từ nhánh: main]
+// Đưa constants và hàm xử lý ra ngoài component để tối ưu hiệu suất
+// ==========================================
 const HIDDEN_PATHS = ['/welcome', '/login', '/register'];
 
 const getProfileFromStorage = () => {
@@ -16,10 +20,13 @@ export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // [Accept từ nhánh: main] - Sử dụng access_token thay vì jwt_token
+  // const [token, setToken] = useState(localStorage.getItem('jwt_token')); // -> Bị xóa
   const [token, setToken] = useState(localStorage.getItem('access_token'));
   const [profile, setProfile] = useState(getProfileFromStorage);
 
   useEffect(() => {
+    // [Accept từ nhánh: main] - Xử lý logic event payload xịn hơn
     const syncAuthState = (e) => {
       if (e?.type === 'auth-changed') {
         setProfile(e.detail || null);
@@ -38,27 +45,33 @@ export default function Navbar() {
     };
   }, []);
 
+  // [Accept từ nhánh: main] - Rút gọn điều kiện if
   if (HIDDEN_PATHS.includes(location.pathname)) return null;
 
   const handleLogout = () => {
-    localStorage.removeItem('access_token');
+    // [KẾT HỢP CẢ 2] - Xóa toàn bộ token thừa để không bị lỗi đồng bộ
+    localStorage.removeItem('access_token'); 
+    localStorage.removeItem('jwt_token');
     localStorage.removeItem('user_profile');
+
     window.dispatchEvent(new Event('storage'));
 
     setToken(null);
     setProfile(null);
+
+    // [Accept từ nhánh: main] - Dùng replace: true để xóa history sau khi logout
+    // navigate('/login'); // -> Bị xóa
     navigate('/login', { replace: true });
   };
 
-  // 💡 CHỈNH SỬA Ở ĐÂY: Ưu tiên display_name, không có mới dùng email
+  // [Accept từ nhánh: main] - Xử lý hiển thị thông tin User (DisplayName + Avatar)
   const userEmail = profile?.email || '';
-  // const displayName = profile?.display_name || userEmail || 'You';
   const displayName = profile?.display_name || 'You';
   const userRole = profile?.role || '';
   
-  // Avatar cũng sẽ lấy chữ cái đầu của Tên thay vì Email
   const avatarInitial = displayName.charAt(0).toUpperCase();
 
+  // [Accept từ nhánh: main] - Cấu trúc giao diện mới
   return (
     <div className="navbar-wrapper">
       <header className="navbar">
@@ -79,6 +92,14 @@ export default function Navbar() {
                 <NavLink to="/progress" className="nav-link">
                   Progress
                 </NavLink>
+
+                {/* ============================================== */}
+                {/* [Accept từ nhánh: frontend-view-skill-profile] */}
+                {/* Bổ sung Link đến My Profile và chuyển thành NavLink */}
+                {/* ============================================== */}
+                <NavLink to="/skill-profile" className="nav-link">
+                  My Profile
+                </NavLink>
               </nav>
             )}
 
@@ -86,7 +107,6 @@ export default function Navbar() {
               {token ? (
                 <>
                   <div className="user-meta">
-                    {/* Hiển thị Tên thay vì Email */}
                     <span className="user-name" title={displayName}>
                       {displayName}
                     </span>

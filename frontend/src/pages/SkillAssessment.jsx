@@ -29,6 +29,9 @@ export default function SkillAssessment() {
   const currentUserName = userProfile?.display_name || userProfile?.email || 'User';
 
   useEffect(() => {
+    assessmentApi.getCurrentUser()
+      .then(data => setCurrentUser(data.user))
+      .catch(err => console.error("Error loading current user:", err));
     assessmentApi.getSkills()
       .then(data => {
         if (data && data.skills) {

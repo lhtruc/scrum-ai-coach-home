@@ -16,12 +16,24 @@ import ActionProgress from "./pages/ActionProgress";
 import Dashboard from "./pages/Dashboard";
 import ProgressDashboard from "./pages/ProgressDashboard";
 import Settings from "./pages/Settings";
-import Feedback from "./pages/Feedback";
 
-function HomeRedirect() {
+// ==========================================
+// GIẢI QUYẾT MERGE CONFLICT (ACCEPT BOTH)
+// ==========================================
+
+// [Accept từ nhánh: frontend-view-skill-profile]
+// import RequireAuth from "./components/RequireAuth"; // -> Dòng này bị xóa (comment lại) do đã được import ở dòng 4 bên trên.
+import SkillProfile from "./pages/SkillProfile";       // -> Giữ lại để render route /skill-profile
+
+// [Accept từ nhánh: main]
+import Feedback from "./pages/Feedback";               // -> Giữ lại để render route /feedback
+
+function HomeRedirect() {                              // -> Giữ lại hàm này làm component cho route "/"
   const token = localStorage.getItem("access_token");
   return <Navigate to={token ? "/dashboard" : "/welcome"} replace />;
 }
+
+// ==========================================
 
 export default function App() {
   return (
@@ -41,7 +53,6 @@ export default function App() {
             element={<HomeRedirect />}
           />
 
-          {/* Protected Routes */}
           <Route
             path="/skills"
             element={
@@ -119,6 +130,14 @@ export default function App() {
             }
           />
 
+          <Route
+            path="/skill-profile"
+            element={
+              <RequireAuth>
+                <SkillProfile />
+              </RequireAuth>
+            }
+          />
         </Routes>
       </Layout>
     </BrowserRouter>
