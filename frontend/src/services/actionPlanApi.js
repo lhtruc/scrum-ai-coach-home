@@ -83,6 +83,37 @@ const actionPlanApi = {
     }
 
     return await response.json();
+  },
+
+  // GET /api/actions/check-overdue — check if any actions are overdue
+  checkOverdue: async () => {
+    const response = await fetch(`${API_BASE_URL}/actions/check-overdue`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to check overdue actions');
+    return await response.json();
+  },
+
+  // POST /api/actions/revise — request a revision of the action plan
+  revisePlan: async () => {
+    const response = await fetch(`${API_BASE_URL}/actions/revise`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to request plan revision');
+    return await response.json();
+  }
+,
+  // PUT /api/actions/bulk-update — apply a set of updates for actions
+  bulkUpdate: async (payload) => {
+    const response = await fetch(`${API_BASE_URL}/actions/bulk-update`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Failed to bulk update actions');
+    return await response.json();
   }
 };
 

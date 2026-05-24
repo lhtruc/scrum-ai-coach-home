@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import actionPlanApi from '../services/actionPlanApi';
+import ReviseModal from '../components/ReviseModal';
 import './SkillAssessment.css';
 import './ActionPlan.css';
 import './ProgressDashboard.css';
@@ -113,6 +114,9 @@ export default function ProgressDashboard() {
     percentage: 0, daysRemaining: null, deadline: null
   });
   const [errorMsg, setErrorMsg] = useState(null);
+  const [overdue, setOverdue] = useState(null);
+  const [reviseLoading, setReviseLoading] = useState(false);
+  const [reviseOpen, setReviseOpen] = useState(false);
 
   // Compute stats from current step list (for optimistic updates)
   const computeStats = useCallback((stepList, deadline) => {
@@ -131,12 +135,21 @@ export default function ProgressDashboard() {
 
     (async () => {
       try {
-        const data = await actionPlanApi.getActiveGoalStats(userId);
+        // Fetch active goal stats and overdue info in parallel
+        const [data, overdueInfo] = await Promise.all([
+          actionPlanApi.getActiveGoalStats(userId),
+          actionPlanApi.checkOverdue().catch(err => {
+            console.error('Check overdue failed:', err);
+            return null; // ignore overdue errors
+          })
+        ]);
+
         const fetchedSteps = data.steps || [];
         const deadline = data.statistics?.goal_deadline || null;
         setGoal(data.active_goal || null);
         setSteps(fetchedSteps);
         computeStats(fetchedSteps, deadline);
+        if (overdueInfo) setOverdue(overdueInfo);
         setView('READY');
       } catch (err) {
         console.error('Dashboard load error:', err);
@@ -145,6 +158,51 @@ export default function ProgressDashboard() {
       }
     })();
   }, [computeStats]);
+
+  const handleRevisePlan = async () => {
+    // Open modal using current goal + progress as payload
+    setReviseOpen(true);
+  };
+
+  const buildRevisePayload = () => {
+    return {
+      goal_id: goal?.id,
+      progress: {
+        completed_steps: steps.filter(s => s.is_completed).map(s => s.id),
+        pending_steps: steps.filter(s => !s.is_completed).map(s => s.id),
+        completion_percentage: stats.percentage
+      },
+      instruction: 'Do not modify completed steps. Keep all completed progress. Only revise incomplete steps. Return 2-3 options. Each option must include title, explanation, revised_steps, deadline_change.'
+    };
+  };
+
+  const handleSaveRevision = async (option) => {
+    // option is expected to include `steps` array describing updates for non-completed steps
+    if (!goal) return;
+    setReviseLoading(true);
+    try {
+      const updates = option.steps || option.revised_steps || [];
+      const shouldArchive = (option.version === 'Version 1') || ((option.strategy || '').toLowerCase().includes('reduce'));
+      const payload = { goal_id: goal.id, steps: updates, archive_missing: Boolean(shouldArchive) };
+
+      await actionPlanApi.bulkUpdate(payload);
+
+      // refresh active goal stats
+      const userProfile = JSON.parse(localStorage.getItem('user_profile') || 'null');
+      const userId = userProfile?.id || null;
+      const data = await actionPlanApi.getActiveGoalStats(userId);
+      const fetchedSteps = data.steps || [];
+      const deadline = data.statistics?.goal_deadline || null;
+      setGoal(data.active_goal || null);
+      setSteps(fetchedSteps);
+      computeStats(fetchedSteps, deadline);
+      setReviseOpen(false);
+    } catch (err) {
+      console.error('Apply revision failed:', err);
+    } finally {
+      setReviseLoading(false);
+    }
+  };
 
   // Toggle a step — optimistic UI: update local state immediately, then call API
   const handleToggleStep = async (stepId, newStatus) => {
@@ -227,13 +285,31 @@ export default function ProgressDashboard() {
         <p className="subtitle">Track your learning journey at a glance.</p>
       </div>
 
+      {/* Overdue notification (from /api/actions/check-overdue) */}
+      {overdue && overdue.needs_revision && (
+        <div className="overdue-banner" id="dashboard-overdue-banner">
+          <div className="overdue-icon">⚠️</div>
+          <div className="overdue-body">
+            <div className="overdue-text">You have {overdue.overdue_count} overdue action steps. Consider revising your action plan.</div>
+          </div>
+          <div className="overdue-actions">
+            <button className="btn" onClick={() => setReviseOpen(true)} disabled={reviseLoading}>
+              {reviseLoading ? 'Revising...' : 'Revise Plan'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Active goal banner */}
       {goal && (
         <div className="goal-banner" id="dashboard-goal-banner">
           <div className="goal-banner-label">Active Goal</div>
           <h2 className="goal-banner-title">{goal.goal_title || goal.name}</h2>
+          <div style={{ marginLeft: 'auto' }}>
+            <button className="btn" onClick={() => setReviseOpen(true)}>Revise Plan</button>
+          </div>
           {stats.deadline && (
-            <div style={{ fontSize: '0.78rem', opacity: 0.75 }}>
+            <div className="goal-banner-deadline">
               Deadline: {formatDeadline(stats.deadline)}
             </div>
           )}
@@ -333,6 +409,13 @@ export default function ProgressDashboard() {
           Open Full Action Plan
         </button>
       </div>
+
+      <ReviseModal
+        isOpen={reviseOpen}
+        onClose={() => setReviseOpen(false)}
+        payload={buildRevisePayload()}
+        onSave={handleSaveRevision}
+      />
 
     </div>
   );

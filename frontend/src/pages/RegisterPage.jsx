@@ -5,7 +5,8 @@ import "./RegisterPage.css";
 
 const initialForm = {
   email: "",
-  password: ""
+  password: "",
+  confirmPassword: ""
 };
 
 export default function RegisterPage({ onSuccess }) {
@@ -33,6 +34,12 @@ export default function RegisterPage({ onSuccess }) {
 
     if (!form.password) {
       nextErrors.password = "Please enter your password.";
+    }
+
+    if (!form.confirmPassword) {
+      nextErrors.confirmPassword = "Please confirm your password.";
+    } else if (form.password !== form.confirmPassword) {
+      nextErrors.confirmPassword = "Passwords do not match.";
     }
 
     return nextErrors;
@@ -134,6 +141,20 @@ export default function RegisterPage({ onSuccess }) {
               />
               {errors.password && (
                 <span className="register-feedback error">{errors.password}</span>
+              )}
+            </label>
+
+            <label className="register-field-group">
+              <span className="register-label">Confirm Password</span>
+              <input
+                className="register-input"
+                type="password"
+                value={form.confirmPassword}
+                onChange={(event) => updateField("confirmPassword", event.target.value)}
+                placeholder="Re-enter your password"
+              />
+              {errors.confirmPassword && (
+                <span className="register-feedback error">{errors.confirmPassword}</span>
               )}
             </label>
           </div>

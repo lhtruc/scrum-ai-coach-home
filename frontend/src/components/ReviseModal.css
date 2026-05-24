@@ -1,0 +1,107 @@
+.revise-modal-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.35);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:1200;
+}
+
+.revise-modal{
+  width:820px;
+  max-width:96%;
+  background:var(--bg-card);
+  border-radius:12px;
+  padding:18px;
+  box-shadow:0 8px 36px rgba(2,6,23,0.2);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.revise-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.close-btn{
+  background:none;
+  border:0;
+  font-size:1.1rem;
+  cursor:pointer;
+}
+
+.revise-loading, .revise-error{
+  padding:18px;
+}
+
+.revise-instruction{
+  margin:0 0 8px 0;
+  color:var(--text-muted);
+}
+
+.revise-options{ display:flex; flex-direction:column; gap:8px; max-height:420px; overflow:auto; }
+
+.revise-option{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid rgba(0,0,0,0.06);
+}
+
+.revise-option.selected{ box-shadow:0 6px 18px rgba(37,99,235,0.08); border-color: #bfdbfe; }
+
+.opt-content{ flex:1; }
+.opt-title{ font-weight:800; margin-bottom:6px; }
+.opt-explain{ color:var(--text-muted); margin-bottom:8px; }
+
+.opt-steps{ display:flex; gap:14px; }
+.opt-steps-group{ min-width:200px; }
+
+/* Revision option two-column layout */
+.revision-option-body {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.revision-column {
+  min-width: 0;
+}
+
+.revision-column:empty {
+  display: none;
+}
+
+.revision-option-body.no-completed {
+  grid-template-columns: 1fr;
+}
+
+.revision-option-body.no-completed .pending-column {
+  margin-left: 0;
+}
+
+/* Fallback simpler layout if desired: keep pending list readable */
+.revision-steps-list {
+  margin-left: 6px;
+}
+.group-title{ font-size:0.78rem; font-weight:700; color:var(--text-muted); margin-bottom:6px; }
+
+.step-title{ font-weight:600; margin-right:8px; }
+.deadline-change{ color:#b45309; font-weight:700; margin-left:6px; }
+
+.revise-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:6px; }
+
+@media (max-width:860px){
+  .revise-modal{ width:94%; padding:12px; }
+  .revision-option-body{ grid-template-columns: 1fr; }
+}
+@media (max-width:640px){
+  .revise-modal{ width:94%; padding:12px; }
+  .opt-steps{ flex-direction:column; }
+}
