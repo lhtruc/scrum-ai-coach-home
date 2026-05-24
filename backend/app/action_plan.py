@@ -297,13 +297,13 @@ Do not include explanations outside JSON.
 JSON format:
 [
   {{
-    "title": "Milestone 1: ...",
+    "title": "Clear action plan title without numbering or the word milestone",
     "description": "...",
     "metric": "...",
     "deadline": "YYYY-MM-DD"
   }},
   {{
-    "title": "Milestone 2: ...",
+    "title": "Another clear action plan title without numbering or the word milestone",
     "description": "...",
     "metric": "...",
     "deadline": "YYYY-MM-DD"
