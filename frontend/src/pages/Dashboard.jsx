@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './Dashboard.css';
+import Feedback from './Feedback';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -100,9 +101,9 @@ export default function Dashboard() {
             </p>
           </div>
           {current_goal ? (
-            <Link to="/" className="widget-link">Manage Goal</Link>
+            <Link to="/skills" className="widget-link">Manage Goal</Link>
           ) : (
-            <Link to="/" className="widget-link-btn">Create Goal</Link>
+            <Link to="/skills" className="widget-link-btn">Create Goal</Link>
           )}
         </div>
 
@@ -148,11 +149,11 @@ export default function Dashboard() {
       <section className="dashboard-shortcuts-section">
         <h2 className="section-title">Quick Actions</h2>
         <div className="shortcuts-grid">
-          <div className="shortcut-item-card" onClick={() => navigate('/')}>
+          <div className="shortcut-item-card" onClick={() => navigate('/skills')}>
             <h4>Skill Profile</h4>
             <p>Update skill rating levels and view coach analysis.</p>
           </div>
-          <div className="shortcut-item-card" onClick={() => navigate('/')}>
+          <div className="shortcut-item-card" onClick={() => navigate('/skills')}>
             <h4>Goal Setting</h4>
             <p>Select recommended or customize your learning roadmaps.</p>
           </div>
@@ -169,6 +170,12 @@ export default function Dashboard() {
             <p>Manage your account settings and preferences.</p>
           </div>
         </div>
+      </section>
+
+      {/* Weekly Feedback (inline) */}
+      <section className="dashboard-feedback-section">
+        <h2 className="section-title">Weekly Feedback</h2>
+        <Feedback />
       </section>
     </div>
   );

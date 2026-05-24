@@ -1,21 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import assessmentApi from '../services/assessmentApi';
-import './SkillAssessment.css'; 
+import './SkillAssessment.css';
 
-export default function GoalSelection({ userId, userName, skillName, ratingLevel, onResetFlow }) {
+export default function GoalSelection({ userId, userName, skillName, ratingLevel }) {
   const navigate = useNavigate();
-  const [view, setView] = useState('LOADING'); // LOADING, SELECTION, PROCESSING, CONFIRM, SAVING, COMPLETE
+  const [view, setView] = useState('LOADING'); // LOADING, SELECTION, PROCESSING, CONFIRM, SAVING
   const [suggestedGoals, setSuggestedGoals] = useState([]);
-  const [activeGoal, setActiveGoal] = useState(null); // Lưu trữ mục tiêu được chọn để xác nhận
-  const [savedGoalId, setSavedGoalId] = useState(null); // ID trả về sau khi lưu vào Supabase
-  
-  const [selectionType, setSelectionType] = useState(null); // 'SUGGESTED' hoặc 'CUSTOM'
+  const [activeGoal, setActiveGoal] = useState(null);
+  const [selectionType, setSelectionType] = useState(null); // SUGGESTED | CUSTOM
   const [selectedGoalIndex, setSelectedGoalIndex] = useState(null);
-  const [customGoalText, setCustomGoalText] = useState("");
+  const [customGoalText, setCustomGoalText] = useState('');
   const [warningMsg, setWarningMsg] = useState(null);
 
-  // Khởi tạo lấy gợi ý mục tiêu từ AI
   useEffect(() => {
     const fetchSuggestions = async () => {
       try {
@@ -25,30 +22,49 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
           skills: [{ skills_name: skillName, rating_level: ratingLevel }]
         };
         const response = await assessmentApi.suggestGoals(payload);
-        setSuggestedGoals(response.goals);
-        setView('SELECTION');
+        setSuggestedGoals(response.goals || []);
       } catch (err) {
-        console.error("AI Error", err);
-        setWarningMsg("Failed to load AI suggestions.");
+        console.error('AI Error', err);
+        setWarningMsg('Failed to load AI suggestions.');
+      } finally {
         setView('SELECTION');
       }
     };
+
     fetchSuggestions();
   }, [skillName, ratingLevel, userId, userName]);
 
-  // Helper render màu sắc cho mức độ khả thi (Feasibility Badge)
   const renderFeasibilityBadge = (feasibility) => {
     let bg = '#f1f5f9';
     let color = '#475569';
-    if (feasibility === 'HIGH') { bg = '#dcfce7'; color = '#166534'; }
-    if (feasibility === 'MEDIUM') { bg = '#fef3c7'; color = '#92400e'; }
-    if (feasibility === 'LOW') { bg = '#fee2e2'; color = '#991b1b'; }
+
+    if (feasibility === 'HIGH') {
+      bg = '#dcfce7';
+      color = '#166534';
+    }
+
+    if (feasibility === 'MEDIUM') {
+      bg = '#fef3c7';
+      color = '#92400e';
+    }
+
+    if (feasibility === 'LOW') {
+      bg = '#fee2e2';
+      color = '#991b1b';
+    }
 
     return (
-      <span style={{
-        padding: '3px 8px', borderRadius: '4px', fontSize: '0.75rem',
-        fontWeight: 'bold', backgroundColor: bg, color: color, marginLeft: '8px'
-      }}>
+      <span
+        style={{
+          padding: '3px 8px',
+          borderRadius: '4px',
+          fontSize: '0.75rem',
+          fontWeight: 'bold',
+          backgroundColor: bg,
+          color,
+          marginLeft: '8px'
+        }}
+      >
         {feasibility}
       </span>
     );
@@ -57,18 +73,17 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
   const handleSelectSuggested = (index) => {
     setSelectionType('SUGGESTED');
     setSelectedGoalIndex(index);
-    setCustomGoalText(""); 
+    setCustomGoalText('');
     setWarningMsg(null);
   };
 
   const handleCustomInput = (e) => {
     setSelectionType('CUSTOM');
-    setSelectedGoalIndex(null); 
+    setSelectedGoalIndex(null);
     setCustomGoalText(e.target.value);
     setWarningMsg(null);
   };
 
-  // Bước xử lý khi ấn nút "Continue to Confirm" tại màn hình chọn
   const handleGoToConfirm = async () => {
     if (selectionType === 'SUGGESTED' && selectedGoalIndex !== null) {
       setActiveGoal(suggestedGoals[selectedGoalIndex]);
@@ -76,8 +91,9 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
       return;
     }
 
-    if (selectionType === 'CUSTOM' && customGoalText.trim() !== "") {
+    if (selectionType === 'CUSTOM' && customGoalText.trim() !== '') {
       setView('PROCESSING');
+
       try {
         const payload = {
           user_id: userId,
@@ -86,26 +102,27 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
           goal_technique: skillName,
           skills: [{ skills_name: skillName, rating_level: ratingLevel }]
         };
-        
+
         const response = await assessmentApi.refineCustomGoal(payload);
-        
-        if (response.status === "REJECTED") {
+
+        if (response.status === 'REJECTED') {
           setWarningMsg(response.notification.message);
           setView('SELECTION');
-        } else {
-          setActiveGoal(response.goal);
-          setView('CONFIRM');
+          return;
         }
+
+        setActiveGoal(response.goal);
+        setView('CONFIRM');
       } catch (error) {
-        setWarningMsg("Network error verifying custom goal.");
+        setWarningMsg('Network error verifying custom goal.');
         setView('SELECTION');
       }
     }
   };
 
-  // Bước cuối cùng: Gọi API lưu chính thức vào database Supabase
-  const handleSaveToSupabase = async () => {
+  const handleSaveAndGeneratePlan = async () => {
     if (!activeGoal) return;
+
     setView('SAVING');
 
     const payload = {
@@ -114,7 +131,6 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
       goal_title: activeGoal.goal_title,
       goal_technique: activeGoal.goal_technique || skillName,
       feasibility: activeGoal.feasibility,
-      // Đóng gói các metadata khác vào trường json validation_response
       validation_response: {
         goal_description: activeGoal.goal_description,
         target_skill_level: activeGoal.target_skill_level,
@@ -126,40 +142,50 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
 
     try {
       const result = await assessmentApi.confirmGoal(payload);
-      // Capture the returned goal ID if the backend sends it back
-      if (result && result.saved_goal && result.saved_goal.id) {
-        setSavedGoalId(result.saved_goal.id);
+      const savedGoal = result?.saved_goal;
+
+      if (!savedGoal?.id) {
+        throw new Error('Goal ID was not returned after save.');
       }
-      setView('COMPLETE');
+
+      navigate('/action-plan', {
+        state: {
+          goalId: savedGoal.id,
+          goalTitle: activeGoal.goal_title,
+          goalTechnique: activeGoal.goal_technique || skillName,
+          feasibility: activeGoal.feasibility,
+          autoGenerate: true,
+          fromGoalFlow: true
+        }
+      });
     } catch (error) {
-      alert("Failed to save goal to database!");
+      console.error('Failed to save goal:', error);
+      alert('Failed to save goal to database!');
       setView('CONFIRM');
     }
   };
 
-  // ================= STATE: LOADING / PROCESSING / SAVING =================
   if (view === 'LOADING' || view === 'PROCESSING' || view === 'SAVING') {
     return (
       <div className="mobile-container">
         <div className="glass-card text-center pulse-anim">
           <div className="loader-ring"></div>
-          <h3 className="title" style={{marginTop: '20px'}}>
-            {view === 'LOADING' && "AI is generating goals..."}
-            {view === 'PROCESSING' && "AI is validating your custom goal..."}
-            {view === 'SAVING' && "Saving your roadmap to Database..."}
+          <h3 className="title" style={{ marginTop: '20px' }}>
+            {view === 'LOADING' && 'AI is generating goals...'}
+            {view === 'PROCESSING' && 'AI is validating your custom goal...'}
+            {view === 'SAVING' && 'Saving your goal and preparing the action plan...'}
           </h3>
         </div>
       </div>
     );
   }
 
-  // ================= MÀN HÌNH 2: XÁC NHẬN GOAL CHI TIẾT (CONFIRM SCREEN) =================
-  if (view === 'CONFIRM') {
+  if (view === 'CONFIRM' && activeGoal) {
     return (
       <div className="mobile-container slide-left">
         <div className="header-text">
-          <h1 className="title">Confirm Roadmap</h1>
-          <p className="subtitle">Review the timeline formulated by AI Coach.</p>
+          <h1 className="title">Confirm Goal</h1>
+          <p className="subtitle">Review the goal before generating your action plan.</p>
         </div>
 
         <div className="glass-card" style={{ marginBottom: '25px' }}>
@@ -169,13 +195,23 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
             </span>
             {renderFeasibilityBadge(activeGoal.feasibility)}
           </div>
-          
+
           <h3 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>{activeGoal.goal_title}</h3>
           <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 15px 0' }}>
             {activeGoal.goal_description}
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '8px', marginBottom: '15px' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '10px',
+              backgroundColor: '#f8fafc',
+              padding: '12px',
+              borderRadius: '8px',
+              marginBottom: '15px'
+            }}
+          >
             <div>
               <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Duration</span>
               <div style={{ fontWeight: 'bold', color: '#334155' }}>{activeGoal.duration_weeks} Weeks</div>
@@ -187,65 +223,23 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
           </div>
 
           <h4 style={{ margin: '0 0 5px 0', color: '#1e293b', fontSize: '0.9rem' }}>Coach Analysis:</h4>
-          <p style={{ color: '#64748b', fontSize: '0.85rem', italic: 'true', margin: 0 }}>
+          <p style={{ color: '#64748b', fontSize: '0.85rem', margin: 0 }}>
             "{activeGoal.reason}"
           </p>
         </div>
 
         <div className="bottom-action-bar" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <button className="btn btn-primary" onClick={handleSaveToSupabase}>Activate & Save Roadmap</button>
-          <button className="btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={() => setView('SELECTION')}>Back to List</button>
+          <button className="btn btn-primary" onClick={handleSaveAndGeneratePlan}>
+            Generate Action Plan
+          </button>
+          <button className="btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={() => setView('SELECTION')}>
+            Back to List
+          </button>
         </div>
       </div>
     );
   }
 
-  // ================= MÀN HÌNH 3: HOÀN THÀNH KÝ SỰ (COMPLETE SCREEN) =================
-  if (view === 'COMPLETE') {
-    return (
-      <div className="mobile-container text-center fade-in">
-        <div className="glass-card" style={{ padding: '40px 20px', marginTop: '40px' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🚀</div>
-          <h2 className="title" style={{ color: '#166534' }}>Roadmap Activated!</h2>
-          <p className="subtitle" style={{ marginBottom: '30px' }}>
-            Your learning sprint for <strong>{activeGoal.goal_title}</strong> has been successfully registered in Supabase.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button
-              id="view-dashboard-btn"
-              className="btn btn-primary"
-              onClick={() => navigate('/dashboard')}
-              style={{ background: 'linear-gradient(135deg, #2563eb, #60a5fa)', color: 'white' }}
-            >
-              Go to Progress Dashboard
-            </button>
-            {savedGoalId && (
-              <button
-                id="view-action-plan-btn"
-                className="btn btn-primary"
-                style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }}
-                onClick={() => navigate('/action-plan', {
-                  state: {
-                    goalId: savedGoalId,
-                    goalTitle: activeGoal.goal_title,
-                    goalTechnique: activeGoal.goal_technique || skillName,
-                    feasibility: activeGoal.feasibility
-                  }
-                })}
-              >
-                📋 View SMART Action Plan
-              </button>
-            )}
-            <button className="btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={onResetFlow}>
-              Explore More Skills
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ================= MÀN HÌNH 1: DANH SÁCH CHỌN GOAL (SELECTION SCREEN) =================
   return (
     <div className="mobile-container slide-up">
       <div className="header-text">
@@ -255,21 +249,20 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
 
       {warningMsg && (
         <div className="glass-card" style={{ borderLeft: '4px solid #ef4444', backgroundColor: '#fef2f2', marginBottom: '15px' }}>
-          <p style={{ color: '#991b1b', margin: 0, fontWeight: 500 }}>⚠️ {warningMsg}</p>
+          <p style={{ color: '#991b1b', margin: 0, fontWeight: 500 }}>Warning: {warningMsg}</p>
         </div>
       )}
 
       <div className="goal-list" style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '100px' }}>
-        
         {suggestedGoals.map((goal, idx) => {
           const isSelected = selectionType === 'SUGGESTED' && selectedGoalIndex === idx;
           const isDisabled = selectionType === 'CUSTOM' && customGoalText.trim().length > 0;
-          
+
           return (
-            <div 
-              key={idx} 
+            <div
+              key={idx}
               className={`glass-card ${isSelected ? 'selected' : ''}`}
-              style={{ 
+              style={{
                 cursor: isDisabled ? 'not-allowed' : 'pointer',
                 opacity: isDisabled ? 0.5 : 1,
                 border: isSelected ? '2px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.2)'
@@ -282,26 +275,32 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
                 </h4>
                 {renderFeasibilityBadge(goal.feasibility)}
               </div>
+
               <p style={{ margin: '0', fontSize: '0.85rem', color: '#475569', lineHeight: '1.4' }}>
                 {goal.goal_description}
               </p>
+
               <div style={{ marginTop: '12px', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>
-                ⏱ {goal.duration_weeks} Weeks | 📚 {goal.weekly_commitment_hours} hrs/week
+                {goal.duration_weeks} Weeks | {goal.weekly_commitment_hours} hrs/week
               </div>
             </div>
           );
         })}
 
-        <div 
-          className="glass-card" 
+        <div
+          className="glass-card"
           style={{ border: selectionType === 'CUSTOM' ? '2px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.2)' }}
         >
           <h4 style={{ margin: '0 0 10px 0', color: '#1e293b' }}>Or write your own custom goal</h4>
-          <textarea 
+          <textarea
             className="form-control"
-            style={{ 
-              width: '100%', minHeight: '80px', padding: '10px',
-              borderRadius: '8px', border: '1px solid #cbd5e1', fontFamily: 'inherit'
+            style={{
+              width: '100%',
+              minHeight: '80px',
+              padding: '10px',
+              borderRadius: '8px',
+              border: '1px solid #cbd5e1',
+              fontFamily: 'inherit'
             }}
             placeholder="E.g., I want to master basic SQL queries in 1 week..."
             value={customGoalText}
@@ -312,9 +311,9 @@ export default function GoalSelection({ userId, userName, skillName, ratingLevel
       </div>
 
       <div className="bottom-action-bar">
-        <button 
-          className="btn btn-primary" 
-          onClick={handleGoToConfirm} 
+        <button
+          className="btn btn-primary"
+          onClick={handleGoToConfirm}
           disabled={!selectionType || (selectionType === 'CUSTOM' && customGoalText.trim() === '')}
         >
           Continue to Confirm

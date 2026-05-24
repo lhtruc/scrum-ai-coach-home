@@ -1,53 +1,60 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import actionPlanApi from '../services/actionPlanApi';
 import './SkillAssessment.css';
 import './ActionPlan.css';
 
-// Helper: format YYYY-MM-DD → readable date string
 function formatDeadline(dateStr) {
   if (!dateStr) return 'N/A';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const date = new Date(dateStr);
+
+  if (Number.isNaN(date.getTime())) {
+    return dateStr;
+  }
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
 }
 
-// Helper: check if a deadline is overdue
 function isOverdue(dateStr) {
   if (!dateStr) return false;
-  const d = new Date(dateStr);
-  return d < new Date() && !isNaN(d.getTime());
+
+  const date = new Date(dateStr);
+  return date < new Date() && !Number.isNaN(date.getTime());
 }
 
-// SMART label badges (Specific, Measurable, Achievable, Relevant, Time-bound)
 function SmartBadges() {
   const labels = [
     { key: 's', label: 'Specific' },
     { key: 'm', label: 'Measurable' },
     { key: 'a', label: 'Achievable' },
     { key: 'r', label: 'Relevant' },
-    { key: 't', label: 'Time-bound' },
+    { key: 't', label: 'Time-bound' }
   ];
+
   return (
     <div className="smart-badges">
       {labels.map(({ key, label }) => (
-        <span key={key} className={`smart-badge ${key}`}>{label}</span>
+        <span key={key} className={`smart-badge ${key}`}>
+          {label}
+        </span>
       ))}
     </div>
   );
 }
 
-// Feasibility badge (reuse pattern from GoalSelection.jsx)
 function FeasibilityBadge({ feasibility }) {
   if (!feasibility) return null;
-  return (
-    <span className={`feasibility-badge ${feasibility}`}>{feasibility}</span>
-  );
+
+  return <span className={`feasibility-badge ${feasibility}`}>{feasibility}</span>;
 }
 
-// Single action step card with checkbox toggle
 function StepCard({ step, index, onToggle }) {
   const [toggling, setToggling] = useState(false);
+  const overdue = !step.is_completed && isOverdue(step.deadline);
 
   const handleToggle = async (e) => {
     e.stopPropagation();
@@ -56,24 +63,20 @@ function StepCard({ step, index, onToggle }) {
     setToggling(false);
   };
 
-  const overdue = !step.is_completed && isOverdue(step.deadline);
-
   return (
     <div
       id={`step-card-${step.id}`}
       className={`step-card${step.is_completed ? ' completed' : ''}${toggling ? ' toggling' : ''}`}
       onClick={handleToggle}
+      onKeyDown={(e) => e.key === 'Enter' && handleToggle(e)}
       role="checkbox"
       aria-checked={step.is_completed}
       tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && handleToggle(e)}
     >
-      {/* Checkbox circle */}
       <div className="step-checkbox" aria-hidden="true">
         <span className="step-checkbox-check">✓</span>
       </div>
 
-      {/* Content */}
       <div className="step-content">
         <div className="step-number">Step {index + 1}</div>
         <h3 className="step-title">{step.title}</h3>
@@ -82,12 +85,12 @@ function StepCard({ step, index, onToggle }) {
         <div className="step-meta">
           {step.metric && (
             <span className="step-meta-pill metric" title="Measurable metric">
-              📊 {step.metric}
+              Metric: {step.metric}
             </span>
           )}
           {step.deadline && (
             <span className={`step-meta-pill deadline${overdue ? ' overdue' : ''}`} title="Deadline">
-              {overdue ? '⚠️' : '📅'} {formatDeadline(step.deadline)}
+              {overdue ? 'Overdue:' : 'Deadline:'} {formatDeadline(step.deadline)}
             </span>
           )}
         </div>
@@ -96,301 +99,331 @@ function StepCard({ step, index, onToggle }) {
   );
 }
 
-// =============================================
-// Main ActionPlan Component
-// =============================================
-export default function ActionPlan({ goalId: propGoalId, goalTitle: propGoalTitle, goalTechnique: propGoalTechnique, feasibility: propFeasibility, onBack }) {
+function getStoredUserId() {
+  try {
+    const userProfile = JSON.parse(localStorage.getItem('user_profile') || 'null');
+    return userProfile?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+export default function ActionPlan({
+  goalId: propGoalId,
+  goalTitle: propGoalTitle,
+  goalTechnique: propGoalTechnique,
+  feasibility: propFeasibility,
+  onBack
+}) {
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Merge: prefer explicit props, fallback to react-router location.state
   const routeState = location?.state || {};
+
   const initGoalId = propGoalId || routeState.goalId || null;
   const initTitle = propGoalTitle || routeState.goalTitle || '';
-  const initTech = propGoalTechnique || routeState.goalTechnique || '';
-  const initFeas = propFeasibility || routeState.feasibility || 'MEDIUM';
-
-  // view: 'SETUP' | 'LOADING' | 'LIST' | 'GENERATING' | 'ERROR' | 'COMPLETE'
-  const [view, setView] = useState(initGoalId ? 'LOADING' : 'SETUP');
-
-  const [goalId, setGoalId] = useState(initGoalId || '');
-  const [goalIdInput, setGoalIdInput] = useState('');
-  const [goalInfo, setGoalInfo] = useState({
+  const initTechnique = propGoalTechnique || routeState.goalTechnique || '';
+  const initFeasibility = propFeasibility || routeState.feasibility || 'MEDIUM';
+  const initGoalInfo = {
     title: initTitle,
-    technique: initTech,
-    feasibility: initFeas
-  });
+    technique: initTechnique,
+    feasibility: initFeasibility
+  };
 
+  const [view, setView] = useState('LOADING'); // LOADING | LIST | ERROR | EMPTY
+  const [goalId, setGoalId] = useState(initGoalId);
+  const [goalInfo, setGoalInfo] = useState(initGoalInfo);
   const [steps, setSteps] = useState([]);
   const [progress, setProgress] = useState({ total: 0, completed: 0, percentage: 0 });
   const [fallbackMsg, setFallbackMsg] = useState(null);
   const [generating, setGenerating] = useState(false);
 
-  // Compute progress from steps
   const computeProgress = useCallback((stepList) => {
     const total = stepList.length;
-    const completed = stepList.filter(s => s.is_completed).length;
+    const completed = stepList.filter((step) => step.is_completed).length;
     const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
     setProgress({ total, completed, percentage });
   }, []);
 
-  // Load existing steps for the goal
-  const loadSteps = useCallback(async (id) => {
-    setView('LOADING');
-    setFallbackMsg(null);
-    try {
-      const data = await actionPlanApi.getActionSteps(id);
-      const fetchedSteps = data.steps || [];
-      setSteps(fetchedSteps);
-      computeProgress(fetchedSteps);
-      setView(fetchedSteps.length === 0 ? 'SETUP' : 'LIST');
-    } catch (err) {
-      console.error('Failed to load action steps:', err);
-      setFallbackMsg('AI is currently unavailable, please try again.');
-      setSteps([]);
-      setView('ERROR');
+  const generatePlan = useCallback(async (targetGoalId, meta) => {
+    if (!targetGoalId) {
+      setFallbackMsg('Please choose a goal first before generating an action plan.');
+      setView('EMPTY');
+      return;
     }
-  }, [computeProgress]);
 
-  // Initial load if goalId is available (from props or router state)
-  useEffect(() => {
-    if (initGoalId) {
-      loadSteps(initGoalId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Handle loading steps by manually entering goal ID
-  const handleLoadById = async () => {
-    const id = parseInt(goalIdInput, 10);
-    if (!id || isNaN(id)) return;
-    setGoalId(id);
-    await loadSteps(id);
-  };
-
-  // Call POST /api/actions/generate
-  const handleGenerate = async () => {
-    if (!goalId) return;
     setGenerating(true);
     setFallbackMsg(null);
 
     try {
-      const payload = {
-        goal_id: parseInt(goalId, 10),
-        goal_title: goalInfo.title || `Goal #${goalId}`,
-        goal_technique: goalInfo.technique || 'General',
-        feasibility: goalInfo.feasibility || 'MEDIUM'
+      const safeMeta = {
+        title: meta?.title || `Goal #${targetGoalId}`,
+        technique: meta?.technique || 'General',
+        feasibility: meta?.feasibility || 'MEDIUM'
       };
+
+      const payload = {
+        goal_id: Number(targetGoalId),
+        goal_title: safeMeta.title,
+        goal_technique: safeMeta.technique,
+        feasibility: safeMeta.feasibility
+      };
+
       const data = await actionPlanApi.generateActionPlan(payload);
       const generatedSteps = data.steps || [];
+
+      setGoalId(Number(targetGoalId));
+      setGoalInfo(safeMeta);
       setSteps(generatedSteps);
       computeProgress(generatedSteps);
-      setView('LIST');
+      setView(generatedSteps.length > 0 ? 'LIST' : 'EMPTY');
     } catch (err) {
       console.error('Action plan generation failed:', err);
-      // Fallback message as per acceptance criteria
       setFallbackMsg('AI is currently unavailable, please try again.');
       setView('ERROR');
     } finally {
       setGenerating(false);
     }
-  };
+  }, [computeProgress]);
 
-  // Toggle a step's complete/incomplete — PUT /api/actions/{id}/status
+  const loadGoalSteps = useCallback(async (targetGoalId, meta, { autoGenerate = false } = {}) => {
+    if (!targetGoalId) {
+      setFallbackMsg('Please choose a goal first before opening the action plan.');
+      setView('EMPTY');
+      return;
+    }
+
+    setView('LOADING');
+    setFallbackMsg(null);
+
+    try {
+      const safeMeta = {
+        title: meta?.title || `Goal #${targetGoalId}`,
+        technique: meta?.technique || 'General',
+        feasibility: meta?.feasibility || 'MEDIUM'
+      };
+
+      const data = await actionPlanApi.getActionSteps(targetGoalId);
+      const fetchedSteps = data.steps || [];
+
+      setGoalId(Number(targetGoalId));
+      setGoalInfo(safeMeta);
+
+      if (fetchedSteps.length === 0 && autoGenerate) {
+        await generatePlan(targetGoalId, safeMeta);
+        return;
+      }
+
+      setSteps(fetchedSteps);
+      computeProgress(fetchedSteps);
+      setView(fetchedSteps.length > 0 ? 'LIST' : 'EMPTY');
+    } catch (err) {
+      console.error('Failed to load action steps:', err);
+      setFallbackMsg('Failed to load the action plan. Please try again.');
+      setView('ERROR');
+    }
+  }, [computeProgress, generatePlan]);
+
+  const bootstrapActiveGoal = useCallback(async () => {
+    setView('LOADING');
+    setFallbackMsg(null);
+
+    try {
+      const data = await actionPlanApi.getActiveGoalStats(getStoredUserId());
+      const activeGoal = data.active_goal;
+      const fetchedSteps = data.steps || [];
+
+      if (!activeGoal?.id) {
+        setFallbackMsg('Please select a goal first.');
+        setView('EMPTY');
+        return;
+      }
+
+      const meta = {
+        title: activeGoal.goal_title || activeGoal.name || '',
+        technique: activeGoal.goal_technique || '',
+        feasibility: activeGoal.feasibility || 'MEDIUM'
+      };
+
+      setGoalId(activeGoal.id);
+      setGoalInfo(meta);
+
+      if (fetchedSteps.length === 0) {
+        await generatePlan(activeGoal.id, meta);
+        return;
+      }
+
+      setSteps(fetchedSteps);
+      computeProgress(fetchedSteps);
+      setView('LIST');
+    } catch (err) {
+      console.error('Failed to bootstrap active goal:', err);
+      setFallbackMsg('Please select and confirm a goal before opening the action plan.');
+      setView('EMPTY');
+    }
+  }, [computeProgress, generatePlan]);
+
+  useEffect(() => {
+    if (initGoalId) {
+      loadGoalSteps(
+        initGoalId,
+        {
+          title: initTitle,
+          technique: initTechnique,
+          feasibility: initFeasibility
+        },
+        { autoGenerate: Boolean(routeState.autoGenerate) }
+      );
+      return;
+    }
+
+    bootstrapActiveGoal();
+  }, [
+    bootstrapActiveGoal,
+    initGoalId,
+    initFeasibility,
+    initTechnique,
+    initTitle,
+    loadGoalSteps,
+    routeState.autoGenerate
+  ]);
+
   const handleToggleStep = async (stepId, newStatus) => {
     try {
       await actionPlanApi.updateStepStatus(stepId, newStatus);
-      const updated = steps.map(s =>
-        s.id === stepId ? { ...s, is_completed: newStatus } : s
-      );
-      setSteps(updated);
-      computeProgress(updated);
 
-      // Show COMPLETE banner if all done
-      if (updated.every(s => s.is_completed) && updated.length > 0) {
-        setView('COMPLETE');
-      } else if (view === 'COMPLETE') {
-        setView('LIST');
-      }
+      const updatedSteps = steps.map((step) =>
+        step.id === stepId ? { ...step, is_completed: newStatus } : step
+      );
+
+      setSteps(updatedSteps);
+      computeProgress(updatedSteps);
     } catch (err) {
       console.error('Failed to update step status:', err);
       setFallbackMsg('Failed to update step. Please try again.');
     }
   };
 
-  const allDone = steps.length > 0 && steps.every(s => s.is_completed);
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
 
-  // ================= VIEW: LOADING =================
+    if (routeState.fromGoalFlow) {
+      navigate('/skills');
+      return;
+    }
+
+    navigate(-1);
+  };
+
+  const handleRetry = () => {
+    if (goalId) {
+      loadGoalSteps(goalId, goalInfo, { autoGenerate: true });
+      return;
+    }
+
+    bootstrapActiveGoal();
+  };
+
+  const allDone = steps.length > 0 && steps.every((step) => step.is_completed);
+
   if (view === 'LOADING') {
     return (
       <div className="mobile-container">
         <div className="glass-card text-center pulse-anim">
           <div className="loader-ring"></div>
           <h3 className="title" style={{ marginTop: '20px' }}>Loading Action Plan...</h3>
-          <p className="subtitle">Fetching your SMART steps from the database.</p>
+          <p className="subtitle">Fetching your goal and existing SMART steps.</p>
         </div>
       </div>
     );
   }
 
-  // ================= VIEW: GENERATING =================
   if (generating) {
     return (
       <div className="mobile-container">
         <div className="glass-card text-center pulse-anim">
           <div className="loader-ring"></div>
-          <h3 className="title" style={{ marginTop: '20px' }}>AI is generating your plan...</h3>
-          <p className="subtitle">Creating a personalized SMART action plan with at least 5 steps.</p>
+          <h3 className="title" style={{ marginTop: '20px' }}>Generating Action Plan...</h3>
+          <p className="subtitle">Creating your personalized SMART milestones from the confirmed goal.</p>
         </div>
       </div>
     );
   }
 
-  // ================= VIEW: SETUP (No goal ID provided) =================
-  if (view === 'SETUP' && !initGoalId) {
+  if (view === 'EMPTY') {
     return (
       <div className="mobile-container fade-in">
         <div className="header-text">
-          <h1 className="title">SMART Action Plan</h1>
+          <h1 className="title">Action Plan</h1>
+          <p className="subtitle">Action plans are available after a goal has been confirmed.</p>
         </div>
 
-        <SmartBadges />
+        <div className="fallback-card" id="empty-action-plan-message">
+          <span className="fallback-icon">!</span>
+          <p className="fallback-text">{fallbackMsg || 'Please select a goal first.'}</p>
+        </div>
 
-        {fallbackMsg && (
-          <div className="fallback-card" id="fallback-message">
-            <span className="fallback-icon">⚠️</span>
-            <p className="fallback-text">{fallbackMsg}</p>
-          </div>
-        )}
-
-        <div className="generate-area">
-          <div className="generate-icon">🤖</div>
-          <h3 className="generate-title">Or generate a new plan</h3>
-
-
-          <div style={{ textAlign: 'left', marginBottom: '16px' }}>
-            {/*Delete this when release*/}
-            <label style={{ fontSize: '0.82rem', fontWeight: '600', color: '#64748b', display: 'block', marginBottom: '6px' }}>Goal ID *</label>
-            <input
-              id="gen-goal-id-input"
-              type="number"
-              className="input-field"
-              placeholder="Goal ID"
-              value={goalId}
-              onChange={(e) => setGoalId(e.target.value)}
-              style={{ marginBottom: '10px' }}
-            />
-            <label style={{ fontSize: '0.82rem', fontWeight: '600', color: '#64748b', display: 'block', marginBottom: '6px' }}>Goal Title</label>
-            <input
-              id="gen-goal-title-input"
-              type="text"
-              className="input-field"
-              placeholder="E.g., Master SQL in 4 weeks"
-              value={goalInfo.title}
-              onChange={(e) => setGoalInfo(g => ({ ...g, title: e.target.value }))}
-              style={{ marginBottom: '10px' }}
-            />
-            <label style={{ fontSize: '0.82rem', fontWeight: '600', color: '#64748b', display: 'block', marginBottom: '6px' }}>Technique / Skill</label>
-            <input
-              id="gen-goal-technique-input"
-              type="text"
-              className="input-field"
-              placeholder="E.g., SQL, Python, Scrum"
-              value={goalInfo.technique}
-              onChange={(e) => setGoalInfo(g => ({ ...g, technique: e.target.value }))}
-              style={{ marginBottom: '10px' }}
-            />
-            <label style={{ fontSize: '0.82rem', fontWeight: '600', color: '#64748b', display: 'block', marginBottom: '6px' }}>Feasibility</label>
-            <select
-              id="gen-feasibility-select"
-              className="input-field"
-              value={goalInfo.feasibility}
-              onChange={(e) => setGoalInfo(g => ({ ...g, feasibility: e.target.value }))}
-              style={{ marginBottom: '0' }}
-            >
-              <option value="HIGH">HIGH</option>
-              <option value="MEDIUM">MEDIUM</option>
-              <option value="LOW">LOW</option>
-            </select>
-          </div>
-
-          <button
-            id="generate-btn"
-            className="btn btn-primary"
-            onClick={handleGenerate}
-            disabled={!goalId}
-          >
-            Generate SMART Action Plan
+        <div className="bottom-action-bar" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <button className="btn btn-primary" onClick={() => navigate('/skills')}>
+            Choose Goal
+          </button>
+          <button className="btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={handleBack}>
+            Back
           </button>
         </div>
-      </div >
+      </div>
     );
   }
 
-  // ================= VIEW: ERROR / FALLBACK =================
   if (view === 'ERROR') {
     return (
       <div className="mobile-container fade-in">
         <div className="header-text">
           <h1 className="title">Action Plan</h1>
         </div>
+
         <div className="fallback-card" id="fallback-message">
-          <span className="fallback-icon">⚠️</span>
+          <span className="fallback-icon">!</span>
           <p className="fallback-text">{fallbackMsg || 'AI is currently unavailable, please try again.'}</p>
         </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <button className="btn btn-primary" id="retry-btn" onClick={() => {
-            setFallbackMsg(null);
-            setView('SETUP');
-          }}>
-            ← Try Again
+          <button className="btn btn-primary" id="retry-btn" onClick={handleRetry}>
+            Try Again
           </button>
-          {onBack && (
-            <button className="btn" id="back-btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={onBack}>
-              Back to Goals
-            </button>
-          )}
+          <button className="btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={handleBack}>
+            Back
+          </button>
         </div>
       </div>
     );
   }
 
-  // ================= VIEW: LIST + COMPLETE =================
   return (
     <div className="mobile-container slide-up">
-      {/* Back button */}
-      {/* {onBack && (
-        <button className="btn-icon-back" id="back-to-goals-btn" onClick={onBack}>← Back to Goals</button>
-      )} */}
-      <button
-        className="btn-icon-back"
-        id="back-to-goals-btn"
-        onClick={onBack || (() => navigate(-1))}
-      >
-        ← Back to Goals
+      <button className="btn-icon-back" id="back-to-goals-btn" onClick={handleBack}>
+        ← Back
       </button>
 
-      {/* Header */}
       <div className="header-text">
         <h1 className="title">SMART Action Plan</h1>
         <p className="subtitle">Click any step to mark it as complete.</p>
       </div>
 
-      {/* SMART badge row */}
       <SmartBadges />
 
-      {/* Fallback / error inline */}
       {fallbackMsg && (
         <div className="fallback-card" id="fallback-inline-message">
-          <span className="fallback-icon">⚠️</span>
+          <span className="fallback-icon">!</span>
           <p className="fallback-text">{fallbackMsg}</p>
         </div>
       )}
 
-      {/* Goal info banner */}
       {goalInfo.title && (
         <div className="goal-banner" id="goal-banner">
-          <div className="goal-banner-label">Active Goal</div>
+          <div className="goal-banner-label">Confirmed Goal</div>
           <h2 className="goal-banner-title">
             {goalInfo.title}
             <FeasibilityBadge feasibility={goalInfo.feasibility} />
@@ -412,16 +445,14 @@ export default function ActionPlan({ goalId: propGoalId, goalTitle: propGoalTitl
         </div>
       )}
 
-      {/* All-complete celebration banner */}
-      {(view === 'COMPLETE' || allDone) && (
+      {allDone && (
         <div className="complete-banner" id="all-complete-banner">
-          <div className="complete-banner-icon">🎉</div>
+          <div className="complete-banner-icon">✓</div>
           <h3 className="complete-banner-title">All Steps Completed!</h3>
-          <p className="complete-banner-sub">You've finished your entire SMART action plan. Amazing work!</p>
+          <p className="complete-banner-sub">You have finished the full SMART action plan for this goal.</p>
         </div>
       )}
 
-      {/* Progress bar */}
       <div className="progress-section" id="progress-section">
         <div className="progress-header">
           <span className="progress-label">Progress</span>
@@ -436,7 +467,6 @@ export default function ActionPlan({ goalId: propGoalId, goalTitle: propGoalTitl
         </div>
       </div>
 
-      {/* Step list — structured list as per acceptance criteria */}
       <div className="step-list" id="action-step-list" role="list" aria-label="SMART action steps">
         {steps.map((step, idx) => (
           <StepCard
@@ -448,21 +478,22 @@ export default function ActionPlan({ goalId: propGoalId, goalTitle: propGoalTitl
         ))}
       </div>
 
-      {/* Sticky regenerate bar */}
       <div className="bottom-action-bar" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <button
           id="regenerate-btn"
           className="btn btn-primary"
-          onClick={handleGenerate}
+          onClick={() => generatePlan(goalId, goalInfo)}
           disabled={generating}
         >
-          🔄 Regenerate Action Plan
+          Regenerate Action Plan
         </button>
-        {onBack && (
-          <button id="back-bottom-btn" className="btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={onBack}>
-            ← Back to Goals
-          </button>
-        )}
+        <button
+          className="btn"
+          style={{ background: '#f1f5f9', color: '#475569' }}
+          onClick={() => navigate('/progress')}
+        >
+          Go to Progress
+        </button>
       </div>
     </div>
   );
