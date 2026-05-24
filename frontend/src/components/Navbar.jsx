@@ -1,3 +1,12 @@
+// <<<<<<< frontend-settings-profile-2
+// import "./Navbar.css";
+// import { useEffect, useState } from "react";
+// import {
+//   Link,
+//   useLocation,
+//   useNavigate
+// } from "react-router-dom";
+// =======
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import './Navbar.css';
@@ -15,16 +24,64 @@ const getProfileFromStorage = () => {
     return null;
   }
 };
+// >>>>>>> main
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
 
+// <<<<<<< frontend-settings-profile-2
+//   const [token, setToken] = useState(null);
+//   const [profile, setProfile] = useState(() => {
+//     try {
+//       return JSON.parse(localStorage.getItem("user_profile") || "null");
+//     } catch {
+//       return null;
+//     }
+//   });
+// =======
+// >>>>>>> main
+
   // [Accept từ nhánh: main] - Sử dụng access_token thay vì jwt_token
-  // const [token, setToken] = useState(localStorage.getItem('jwt_token')); // -> Bị xóa
+  // const [token, setToken] = useState(localStorage.getItem('jwt_token')); // -> Bị xóa (từ lịch sử cũ của main)
   const [token, setToken] = useState(localStorage.getItem('access_token'));
   const [profile, setProfile] = useState(getProfileFromStorage);
 
+// <<<<<<< frontend-settings-profile-2
+//   useEffect(() => {
+//     const syncAuth = () => {
+//       setToken(localStorage.getItem("jwt_token"));
+//
+//       try {
+//         setProfile(JSON.parse(localStorage.getItem("user_profile") || "null"));
+//       } catch {
+//         setProfile(null);
+//       }
+//     };
+//
+//     syncAuth();
+//
+//     window.addEventListener("storage", syncAuth);
+//     window.addEventListener("auth-changed", syncAuth);
+//
+//     return () => {
+//       window.removeEventListener("storage", syncAuth);
+//       window.removeEventListener("auth-changed", syncAuth);
+//     };
+//   }, []);
+//
+//   const hiddenPaths = ["/welcome", "/login", "/register"];
+//
+//   if (hiddenPaths.includes(location.pathname)) {
+//     return null;
+//   }
+//
+//   const handleLogout = () => {
+//     localStorage.removeItem("jwt_token");
+//     localStorage.removeItem("user_profile");
+//
+//     window.dispatchEvent(new Event("auth-changed"));
+// =======
   useEffect(() => {
     // [Accept từ nhánh: main] - Xử lý logic event payload xịn hơn
     const syncAuthState = (e) => {
@@ -55,13 +112,17 @@ export default function Navbar() {
     localStorage.removeItem('user_profile');
 
     window.dispatchEvent(new Event('storage'));
+// >>>>>>> main
 
     setToken(null);
     setProfile(null);
 
+// <<<<<<< frontend-settings-profile-2
+//     navigate("/login");
+// =======
     // [Accept từ nhánh: main] - Dùng replace: true để xóa history sau khi logout
-    // navigate('/login'); // -> Bị xóa
     navigate('/login', { replace: true });
+// >>>>>>> main
   };
 
   // [Accept từ nhánh: main] - Xử lý hiển thị thông tin User (DisplayName + Avatar)
@@ -72,6 +133,83 @@ export default function Navbar() {
   const avatarInitial = displayName.charAt(0).toUpperCase();
 
   // [Accept từ nhánh: main] - Cấu trúc giao diện mới
+// <<<<<<< frontend-settings-profile-2
+//   return (
+//     <nav className="navbar">
+//       <div className="nav-container">
+//         <div className="nav-brand">
+//           <span className="logo-icon">⚡</span>
+//
+//           <Link
+//             to="/"
+//             style={{
+//               color: "inherit",
+//               textDecoration: "none",
+//             }}
+//           >
+//             AI Coach
+//           </Link>
+//         </div>
+//
+//         <div className="nav-profile">
+//           {token ? (
+//             <>
+//               <Link
+//                 to="/skill-profile"
+//                 style={{
+//                   textDecoration: "none",
+//                   marginRight: "12px",
+//                   fontWeight: "600",
+//                   color: "#4f46e5",
+//                 }}
+//               >
+//                 My Profile
+//               </Link>
+//
+//               <Link
+//                 to="/settings"
+//                 style={{
+//                   textDecoration: "none",
+//                   marginRight: "12px",
+//                   fontWeight: "600",
+//                   color: "#4f46e5",
+//                 }}
+//               >
+//                 Settings
+//               </Link>
+//
+//               <span className="user-name">
+//                 {profile?.display_name || profile?.email || "You"}
+//               </span>
+//
+//               {profile?.role && (
+//                 <span style={{ marginLeft: "4px", color: "#666" }}>
+//                   ({profile.role})
+//                 </span>
+//               )}
+//
+//               <button
+//                 className="btn"
+//                 onClick={handleLogout}
+//                 style={{ marginLeft: "8px" }}
+//               >
+//                 Logout
+//               </button>
+//             </>
+//           ) : (
+//             <Link
+//               to="/login"
+//               className="btn"
+//               style={{ textDecoration: "none" }}
+//             >
+//               Login
+//             </Link>
+//           )}
+//         </div>
+//       </div>
+//     </nav>
+//   );
+// =======
   return (
     <div className="navbar-wrapper">
       <header className="navbar">
@@ -99,6 +237,14 @@ export default function Navbar() {
                 {/* ============================================== */}
                 <NavLink to="/skill-profile" className="nav-link">
                   My Profile
+                </NavLink>
+
+                {/* ============================================== */}
+                {/* [LẤY TỪ NHÁNH: frontend-settings-profile-2]    */}
+                {/* Thêm link Settings, đồng thời chuyển qua NavLink*/}
+                {/* ============================================== */}
+                <NavLink to="/settings" className="nav-link">
+                  Settings
                 </NavLink>
               </nav>
             )}
@@ -129,4 +275,5 @@ export default function Navbar() {
       </header>
     </div>
   );
+// >>>>>>> main
 }
