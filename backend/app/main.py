@@ -842,6 +842,7 @@ def sync_account(current_user=Depends(verify_token)):
 @app.post("/api/actions/revise")
 def revise_action_plan(current_user=Depends(verify_token)):
     user_id = current_user.id
+
     goal_resp = (
         supabase
         .table("user_goals")
@@ -854,9 +855,13 @@ def revise_action_plan(current_user=Depends(verify_token)):
 
     goals = goal_resp.data or []
     if not goals:
-        return {"message": "No active goal found for user", "revised_steps": []}
+        return {
+            "message": "No active goal found for user",
+            "revised_steps": []
+        }
 
     goal_id = goals[0]["id"]
+
     steps_resp = (
         supabase
         .table("action_steps")
@@ -868,11 +873,32 @@ def revise_action_plan(current_user=Depends(verify_token)):
     )
 
     pending_steps = steps_resp.data or []
+
     if not pending_steps:
-        return {"message": "No pending action steps to revise", "revised_steps": []}
+        return {
+            "message": "No pending action steps to revise",
+            "revised_steps": []
+        }
 
     revised = revise_action_steps_by_ai(pending_steps)
-    return {"message": "Revised steps generated successfully", "revised_steps": revised}
+
+    old_deadline_map = {
+        step["id"]: step.get("deadline")
+        for step in pending_steps
+    }
+
+    revised_steps = []
+
+    for step in revised:
+        revised_steps.append({
+            **step,
+            "old_deadline": old_deadline_map.get(step.get("id"))
+        })
+
+    return {
+        "message": "Revised steps generated successfully",
+        "revised_steps": revised_steps
+    }
 
 @app.put("/api/actions/bulk-update")
 def bulk_update_actions(data: BulkUpdateActionStepsRequest, current_user=Depends(verify_token)):

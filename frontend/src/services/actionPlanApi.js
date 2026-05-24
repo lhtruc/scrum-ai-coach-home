@@ -79,6 +79,22 @@ const actionPlanApi = {
     });
     if (!response.ok) throw new Error('Failed to request plan revision');
     return await response.json();
+  },
+   // PUT /api/actions/bulk-update — save revised deadlines
+  bulkUpdatePlan: async (updates) => {
+    const response = await fetch(`${API_BASE_URL}/actions/bulk-update`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        updates
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to save revised plan');
+    }
+
+    return await response.json();
   }
 };
 

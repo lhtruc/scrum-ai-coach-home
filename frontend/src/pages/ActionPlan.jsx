@@ -136,6 +136,10 @@ export default function ActionPlan({
   const [progress, setProgress] = useState({ total: 0, completed: 0, percentage: 0 });
   const [fallbackMsg, setFallbackMsg] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [needsRevision, setNeedsRevision] = useState(false);
+  const [revisionLoading, setRevisionLoading] = useState(false);
+  const [showRevisionModal, setShowRevisionModal] = useState(false);
+  const [revisedSteps, setRevisedSteps] = useState([]);
 
   const computeProgress = useCallback((stepList) => {
     const total = stepList.length;
@@ -277,6 +281,16 @@ export default function ActionPlan({
     }
 
     bootstrapActiveGoal();
+      actionPlanApi
+      .checkOverdue()
+      .then((data) => {
+        if (data?.needs_revision) {
+          setNeedsRevision(true);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to check overdue:', err);
+      });
   }, [
     bootstrapActiveGoal,
     initGoalId,
@@ -324,6 +338,42 @@ export default function ActionPlan({
     }
 
     bootstrapActiveGoal();
+  };
+
+    const handleRevisePlan = async () => {
+    try {
+      setRevisionLoading(true);
+
+      const data = await actionPlanApi.revisePlan();
+
+      setRevisedSteps(data.revised_steps || []);
+      setShowRevisionModal(true);
+    } catch (err) {
+      console.error('Failed to revise plan:', err);
+      alert('Failed to revise action plan');
+    } finally {
+      setRevisionLoading(false);
+    }
+  };
+
+  const handleAcceptRevision = async () => {
+    try {
+      await actionPlanApi.bulkUpdatePlan(revisedSteps);
+
+      setShowRevisionModal(false);
+      setNeedsRevision(false);
+
+      await loadGoalSteps(goalId, goalInfo);
+
+      alert('Adjusted plan saved successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save revised plan');
+    }
+  };
+
+  const handleKeepOriginal = () => {
+    setShowRevisionModal(false);
   };
 
   const allDone = steps.length > 0 && steps.every((step) => step.is_completed);
@@ -414,6 +464,26 @@ export default function ActionPlan({
 
       <SmartBadges />
 
+      {needsRevision && (
+        <div className="revision-banner">
+          <div>
+            <h3>You have missed some deadlines</h3>
+
+            <p>
+              Would you like the AI to adjust your schedule?
+            </p>
+          </div>
+
+          <button
+            className="btn btn-primary"
+            onClick={handleRevisePlan}
+            disabled={revisionLoading}
+          >
+            {revisionLoading ? 'Adjusting...' : 'Adjust Plan'}
+          </button>
+        </div>
+      )}
+
       {fallbackMsg && (
         <div className="fallback-card" id="fallback-inline-message">
           <span className="fallback-icon">!</span>
@@ -495,6 +565,48 @@ export default function ActionPlan({
           Go to Progress
         </button>
       </div>
+      {showRevisionModal && (
+        <div className="revision-modal-overlay">
+          <div className="revision-modal">
+            <h2>Adjusted Action Plan</h2>
+            
+            <p className="revision-modal-sub">
+              AI suggested updated deadlines based on your current progress.
+            </p>
+            
+            <div className="revision-list">
+              {revisedSteps.map((step) => (
+                <div key={step.id} className="revision-item">
+                  <h4>{step.title}</h4>
+
+                  <div className="revision-dates">
+                    <span className="old-date">
+                      Old: {formatDeadline(step.old_deadline)}
+                    </span>
+
+                    <span className="new-date">
+                      New: {formatDeadline(step.deadline)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div><div className="revision-actions">
+              <button
+                className="btn"
+                onClick={handleKeepOriginal}
+              >
+                Keep Original Plan
+              </button>
+
+              <button
+                className="btn btn-primary"
+                onClick={handleAcceptRevision}
+              >
+                Accept Adjusted Plan
+              </button>
+            </div>
+          </div>
+        </div>)}
     </div>
   );
 }
