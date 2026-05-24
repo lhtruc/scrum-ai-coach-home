@@ -1,5 +1,6 @@
 import { useState } from "react";
 import authApi from "../services/authApi";
+import supabaseAuth from "../services/supabaseAuth";
 import "./RegisterPage.css";
 
 const initialForm = {
@@ -52,18 +53,45 @@ export default function RegisterPage({ onSuccess }) {
     setIsSubmitting(true);
 
     try {
-      await authApi.register({
-        email: form.email,
-        password: form.password
-      });
+      // Register via Supabase Auth directly
+      const data = await supabaseAuth.signUp(form.email, form.password);
 
-      setSuccessMessage("Registration successful. Redirecting to onboarding...");
+      // Try to obtain access token from session
+      const access_token = data?.session?.access_token;
+      const user = data?.user;
 
-      window.setTimeout(() => {
-        if (onSuccess) {
-          onSuccess();
-        }
-      }, 1200);
+      // If no access token (e.g. email confirmation required), inform the user and stop.
+      if (!access_token) {
+        setSuccessMessage(
+          "Registration successful. Please check your email to confirm your account, then log in."
+        );
+        return;
+      }
+
+      localStorage.setItem('access_token', access_token);
+
+      if (user) {
+        localStorage.setItem('user_profile', JSON.stringify(user));
+      }
+
+      // Call backend to sync accounts table
+      try {
+        await authApi.syncAccount(access_token);
+      } catch (err) {
+        // ignore - backend sync can be retried later
+        console.warn('syncAccount failed', err);
+      }
+
+      setSuccessMessage("Registration successful. Redirecting...");
+
+      try {
+        const me = await authApi.getCurrentUser();
+        const role = me?.user?.role;
+        if (role) window.location.href = '/';
+        else window.location.href = '/onboarding';
+      } catch (err) {
+        window.location.href = '/onboarding';
+      }
     } catch (error) {
       setServerError(error.message || "Cannot connect to the server right now.");
     } finally {

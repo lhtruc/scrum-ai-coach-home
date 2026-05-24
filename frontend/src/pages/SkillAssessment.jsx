@@ -11,24 +11,41 @@ const RATING_LEGEND = [
   { score: 5, label: 'Expert', desc: 'Mastery, deep knowledge' }
 ];
 
+const getStoredUserProfile = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user_profile') || '{}');
+  } catch {
+    return {};
+  }
+};
+
 export default function SkillAssessment() {
   const [courses, setCourses] = useState([]);
-  const [view, setView] = useState('LIST'); 
+  const [view, setView] = useState('LIST');
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedLevel, setSelectedLevel] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(getStoredUserProfile());
 
   useEffect(() => {
-    assessmentApi.getCurrentUser()
-      .then(data => setCurrentUser(data.user))
-      .catch(err => console.error("Error loading current user:", err));
-    assessmentApi.getSkills()
-      .then(data => {
+    assessmentApi
+      .getCurrentUser()
+      .then((data) => {
+        const user = data.user || {};
+        setCurrentUser(user);
+        localStorage.setItem('user_profile', JSON.stringify(user));
+      })
+      .catch((err) => {
+        console.error('Error loading current user:', err);
+      });
+
+    assessmentApi
+      .getSkills()
+      .then((data) => {
         if (data && data.skills) {
           setCourses(data.skills);
         }
       })
-      .catch(err => console.error("Error loading skills:", err));
+      .catch((err) => console.error('Error loading skills:', err));
   }, []);
 
   const handleReselect = () => {
@@ -38,8 +55,9 @@ export default function SkillAssessment() {
   };
 
   const handleSubmitToBackend = async () => {
-    if (!selectedLevel) return;
-    setView('GENERATING'); 
+    if (!selectedLevel || !selectedCourse) return;
+
+    setView('GENERATING');
 
     const payload = {
       ratings: [
@@ -54,7 +72,7 @@ export default function SkillAssessment() {
       await assessmentApi.submitAssessment(payload);
       setView('RESULT');
     } catch (error) {
-      alert("Server connection failed!");
+      alert('Server connection failed!');
       setView('REVIEW');
     }
   };
@@ -65,42 +83,46 @@ export default function SkillAssessment() {
     </div>
   );
 
-  // ================= VIEW 5: RESULT (GOAL SELECTION SUITE) =================
   if (view === 'RESULT') {
     return (
-      <GoalSelection 
-        userId={currentUser?.id}
-        userName={currentUser?.email || "User"}
+      <GoalSelection
+        userId={currentUser?.id || ''}
+        userName={currentUser?.display_name || currentUser?.email || 'User'}
         skillName={selectedCourse.name}
         ratingLevel={selectedLevel}
-        onResetFlow={handleReselect} // Khi nhấn nút hoàn tất, reset flow về màn hình LIST ban đầu
+        onResetFlow={handleReselect}
       />
     );
   }
 
-  // ================= VIEW 4: LOADING =================
   if (view === 'GENERATING') {
     return (
       <div className="mobile-container">
         <div className="glass-card text-center pulse-anim">
           <div className="loader-ring"></div>
-          <h3 className="title" style={{marginTop: '20px'}}>Syncing data...</h3>
-          <p className="subtitle">Transmitting your {selectedCourse.name} assessment to the system.</p>
+          <h3 className="title" style={{ marginTop: '20px' }}>
+            Syncing data...
+          </h3>
+          <p className="subtitle">
+            Transmitting your {selectedCourse.name} assessment to the system.
+          </p>
         </div>
       </div>
     );
   }
 
-  // ================= VIEW 3: REVIEW =================
   if (view === 'REVIEW') {
-    const levelData = RATING_LEGEND.find(l => l.score === Number(selectedLevel)) || {};
+    const levelData =
+      RATING_LEGEND.find((level) => level.score === Number(selectedLevel)) || {};
 
     if (!selectedCourse || !levelData.score) {
       return (
         <div className="mobile-container">
           <div className="glass-card text-center">
             <h3>Oops, data lost!</h3>
-            <button className="btn btn-primary" onClick={handleReselect}>Start Over</button>
+            <button className="btn btn-primary" onClick={handleReselect}>
+              Start Over
+            </button>
           </div>
         </div>
       );
@@ -109,16 +131,30 @@ export default function SkillAssessment() {
     return (
       <div className="mobile-container slide-left">
         {renderProgress(100)}
+
         <div className="header-text">
           <h1 className="title">Review Goal</h1>
-          <p className="subtitle">Confirm your skill and level before submitting.</p>
+          <p className="subtitle">
+            Confirm your skill and level before submitting.
+          </p>
         </div>
 
         <div className="glass-card" style={{ marginBottom: '20px' }}>
           <h4 style={{ margin: '0 0 10px 0' }}>Selected Skill</h4>
-          <p style={{ fontWeight: '600', color: 'var(--primary)' }}>{selectedCourse.name}</p>
-          <hr style={{ border: '0', borderTop: '1px solid #eee', margin: '15px 0' }}/>
+          <p style={{ fontWeight: '600', color: 'var(--primary)' }}>
+            {selectedCourse.name}
+          </p>
+
+          <hr
+            style={{
+              border: '0',
+              borderTop: '1px solid #eee',
+              margin: '15px 0'
+            }}
+          />
+
           <h4 style={{ margin: '0 0 10px 0' }}>Selected Level</h4>
+
           <div className="level-card selected" style={{ pointerEvents: 'none' }}>
             <div className="level-badge">{levelData.score}</div>
             <div className="level-info">
@@ -128,32 +164,60 @@ export default function SkillAssessment() {
           </div>
         </div>
 
-        <div className="bottom-action-bar" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <button className="btn btn-primary" onClick={handleSubmitToBackend}>Confirm & Create Goal</button>
-          <button className="btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={handleReselect}>Reselect</button>
+        <div
+          className="bottom-action-bar"
+          style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+        >
+          <button className="btn btn-primary" onClick={handleSubmitToBackend}>
+            Confirm & Create Goal
+          </button>
+
+          <button
+            className="btn"
+            style={{ background: '#f1f5f9', color: '#475569' }}
+            onClick={handleReselect}
+          >
+            Reselect
+          </button>
         </div>
       </div>
     );
   }
 
-  // ================= VIEW 2: RATING LEVEL =================
   if (view === 'RATE') {
     return (
       <div className="mobile-container slide-left">
         {renderProgress(60)}
-        <button className="btn-icon-back" onClick={() => setView('LIST')}>← Back</button>
+
+        <button className="btn-icon-back" onClick={() => setView('LIST')}>
+          ← Back
+        </button>
 
         <div className="course-hero">
           <div className="course-hero-img-wrapper">
-            <img src={selectedCourse.image} alt={selectedCourse.name} className="course-hero-img" onError={(e) => e.target.style.display='none'} />
+            <img
+              src={selectedCourse.image}
+              alt={selectedCourse.name}
+              className="course-hero-img"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
           </div>
+
           <h2 className="hero-title">{selectedCourse.name}</h2>
           <p className="hero-subtitle">Determine your starting point</p>
         </div>
 
         <div className="level-list">
           {RATING_LEGEND.map((level) => (
-            <div key={level.score} className={`level-card ${selectedLevel === level.score ? 'selected' : ''}`} onClick={() => setSelectedLevel(level.score)}>
+            <div
+              key={level.score}
+              className={`level-card ${
+                selectedLevel === level.score ? 'selected' : ''
+              }`}
+              onClick={() => setSelectedLevel(level.score)}
+            >
               <div className="level-badge">{level.score}</div>
               <div className="level-info">
                 <h4>{level.label}</h4>
@@ -164,35 +228,53 @@ export default function SkillAssessment() {
         </div>
 
         <div className="bottom-action-bar">
-          <button className="btn btn-primary" onClick={() => setView('REVIEW')} disabled={!selectedLevel}>Continue</button>
+          <button
+            className="btn btn-primary"
+            onClick={() => setView('REVIEW')}
+            disabled={!selectedLevel}
+          >
+            Continue
+          </button>
         </div>
       </div>
     );
   }
 
-  // ================= VIEW 1: COURSE LIST =================
   return (
     <div className="mobile-container fade-in">
       {renderProgress(20)}
+
       <div className="header-text">
         <h1 className="title">Explore Skills</h1>
-        <p className="subtitle">Select a topic to personalize your learning experience.</p>
+        <p className="subtitle">
+          Select a topic to personalize your learning experience.
+        </p>
       </div>
-      
+
       <div className="course-grid">
         {courses.map((course) => (
-          <div 
-            key={course.id} 
-            className="course-card" 
+          <div
+            key={course.id}
+            className="course-card"
             onClick={() => {
               setSelectedCourse(course);
               setView('RATE');
             }}
           >
             <div className="course-img-wrapper">
-              <img src={course.image} alt={course.name} className="course-img" onError={(e) => e.target.style.display='none'} />
+              <img
+                src={course.image}
+                alt={course.name}
+                className="course-img"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
             </div>
-            <div className="course-content"><h3>{course.name}</h3></div>
+
+            <div className="course-content">
+              <h3>{course.name}</h3>
+            </div>
           </div>
         ))}
       </div>
