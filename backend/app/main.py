@@ -370,7 +370,10 @@ def assess_skills(data: SkillAssessmentRequest, current_user=Depends(verify_toke
         "rating_level": item.rating_level
     } for item in data.ratings]
 
-    result = supabase.table("user_skills").upsert(rows).execute()
+    result = supabase.table("user_skills").upsert(
+        rows,
+        on_conflict="user_id,skills_name"
+    ).execute()
 
     summary = [{
         "skill_name": item.skill_name,
@@ -546,7 +549,38 @@ def generate_weekly_feedback(current_user=Depends(verify_token)):
     try:
         one_week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
         today = datetime.utcnow().date().isoformat()
+        account_role = "Student"
+        account_name = "User"
 
+        try:
+            account_result = (
+                supabase
+                .table("accounts")
+                .select("*")
+                .eq("auth_uid", current_user.id)
+                .limit(1)
+                .execute()
+            )
+
+            if account_result.data:
+                account = account_result.data[0]
+                account_role = account.get("role") or "Student"
+                account_name = account.get("name") or current_user.email or "User"
+        except Exception:
+            pass
+
+        normalized_role = account_role.strip().lower()
+
+        if normalized_role == "student":
+            role_feedback_style = (
+                "The user is a student. Give feedback in a learning-oriented style: "
+                "focus on foundations, understanding, consistency, study habits, and gradual improvement."
+            )
+        else:
+            role_feedback_style = (
+                "The user is an employee or working learner. Give feedback in an application-oriented style: "
+                "focus on practical output, speed of execution, workplace relevance, tools, and next usable actions."
+            )
         existing_feedback = (
             supabase
             .table("weekly_feedbacks")
@@ -575,12 +609,21 @@ def generate_weekly_feedback(current_user=Depends(verify_token)):
         completed_actions = actions_result.data or []
 
         if len(completed_actions) == 0:
+            if normalized_role == "student":
+                empty_summary = "You did not complete any action steps this week, but you can restart by focusing on one small foundation topic."
+                empty_strengths = "You are still connected to your learning journey, which is important for long-term progress."
+                empty_improvements = "Next week, choose one small theory or practice task and complete it consistently."
+            else:
+                empty_summary = "You did not complete any action steps this week, but you can restart with one practical task that creates visible output."
+                empty_strengths = "You are still tracking your progress, which helps you return to execution quickly."
+                empty_improvements = "Next week, complete one small applied task that can be reused in your work or project."
+
             feedback_data = {
                 "user_id": current_user.id,
                 "week_date": datetime.utcnow().date().isoformat(),
-                "summary": "You did not complete any action steps this week, but every new week is a fresh opportunity to restart.",
-                "strengths": "You are still staying connected to your learning journey.",
-                "improvements": "Try completing at least one small action step next week to build momentum.",
+                "summary": empty_summary,
+                "strengths": empty_strengths,
+                "improvements": empty_improvements,
                 "is_empty_week": True
             }
 
@@ -596,6 +639,53 @@ def generate_weekly_feedback(current_user=Depends(verify_token)):
                 "feedback": save_result.data[0]
             }
 
+        active_goal_text = "No active goal found."
+        progress_text = "No progress data found."
+
+        try:
+            goal_result = (
+                supabase
+                .table("user_goals")
+                .select("id, goal_title, goal_technique, feasibility, created_at")
+                .eq("user_id", current_user.id)
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+
+            goals = goal_result.data or []
+
+            if goals:
+                active_goal = goals[0]
+                active_goal_text = (
+                    f"Goal: {active_goal.get('goal_title')}\n"
+                    f"Technique: {active_goal.get('goal_technique')}\n"
+                    f"Feasibility: {active_goal.get('feasibility')}"
+                )
+
+                steps_result = (
+                    supabase
+                    .table("action_steps")
+                    .select("id, is_completed")
+                    .eq("goal_id", active_goal.get("id"))
+                    .execute()
+                )
+
+                steps = steps_result.data or []
+                total_steps = len(steps)
+                completed_steps = sum(1 for step in steps if step.get("is_completed") is True)
+                pending_steps = total_steps - completed_steps
+                progress_percentage = round((completed_steps / total_steps) * 100, 2) if total_steps > 0 else 0
+
+                progress_text = (
+                    f"Total steps: {total_steps}\n"
+                    f"Completed steps: {completed_steps}\n"
+                    f"Pending steps: {pending_steps}\n"
+                    f"Progress percentage: {progress_percentage}%"
+                )
+        except Exception:
+            pass
+
         action_text = ""
         for action in completed_actions:
             action_text += f"""
@@ -606,14 +696,38 @@ Metric: {action.get("metric")}
 
         prompt = f"""
 You are an AI learning coach.
-Analyze the user's completed action steps from the past 7 days:
+
+User profile:
+- Name: {account_name}
+- Role: {account_role}
+
+Role-based feedback style:
+{role_feedback_style}
+
+Current active goal:
+{active_goal_text}
+
+Current progress:
+{progress_text}
+
+Completed action steps from the past 7 days:
 {action_text}
+
+Analyze the user's weekly learning progress based on completed work, current goal, progress level, and role.
+
 Return ONLY valid JSON with exactly these fields:
 {{
   "summary": "...",
   "strengths": "...",
   "improvements": "..."
 }}
+
+Rules:
+- Keep the same JSON structure.
+- Do not add new fields.
+- If the user is a Student, focus on foundations, theory, learning consistency, and study improvement.
+- If the user is not a Student, focus on practical application, fast execution, workplace usefulness, and next usable actions.
+- Do not return markdown.
 """
         response = groq_client.chat.completions.create(
             model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),

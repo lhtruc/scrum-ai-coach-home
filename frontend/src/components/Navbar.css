@@ -1,69 +1,241 @@
-/* src/components/Navbar.css */
+/* ================== THIẾT LẬP BIẾN MÀU HIỆN ĐẠI ================== */
+:root {
+  --nav-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  --nav-text-main: #0f172a;
+  --nav-text-muted: #64748b;
+  --nav-bg-glass: rgba(255, 255, 255, 0.65);
+  --nav-glass-border: rgba(255, 255, 255, 0.8);
+  --nav-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.08);
+  --nav-shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+/* ================== WRAPPER & FLOATING LAYOUT ================== */
+.navbar-wrapper {
+  position: sticky;
+  top: 16px; /* Cách mép trên 1 khoảng để lơ lửng */
+  z-index: 100;
+  padding: 0 20px;
+  pointer-events: none; /* Tránh block click ở khoảng trống */
+}
 
 .navbar {
-  background-color: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  pointer-events: auto; /* Bật lại click cho nav */
 }
 
 .nav-container {
-  max-width: 900px;
+  width: 100%;
+  max-width: 1080px; /* Nhỏ lại 1 chút nhìn thanh thoát hơn */
   margin: 0 auto;
-  padding: 16px 20px;
+  padding: 8px 12px 8px 24px; /* Padding bất đối xứng tạo điểm nhấn */
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
+  gap: 24px;
+  
+  /* Hiệu ứng Floating Glassmorphism */
+  background: var(--nav-bg-glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--nav-glass-border);
+  border-radius: 9999px; /* Bo tròn tuyệt đối dạng viên thuốc */
+  box-shadow: var(--nav-shadow), var(--nav-shadow-inner);
 }
 
+/* ================== BRAND / LOGO ================== */
 .nav-brand {
-  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--nav-text-main);
+  text-decoration: none;
+  font-size: 1.05rem;
   font-weight: 800;
-  color: var(--text-main);
+  letter-spacing: -0.02em; /* Kéo chữ sát lại xíu nhìn xịn hơn */
+}
+
+.logo-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%; /* Tròn xoe cho đồng bộ khối pill */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--nav-gradient); /* Gradient rực rỡ */
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 900;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); /* Bóng phát sáng */
+}
+
+.nav-right {
   display: flex;
   align-items: center;
-  gap: 8px;
-  letter-spacing: -0.5px;
+  gap: 16px;
 }
 
-.logo-icon { color: var(--primary); font-size: 20px;}
+/* ================== MENU LINKS (DẠNG PILL) ================== */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.03); /* Lót nền cực mờ */
+}
 
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 9999px; /* Tròn tuyệt đối */
+  color: var(--nav-text-muted);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-link:hover {
+  color: var(--nav-text-main);
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.nav-link.active {
+  background: #ffffff;
+  color: var(--nav-text-main);
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+/* ================== PROFILE SECTION ================== */
 .nav-profile {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: var(--bg-card);
-  /* Sửa lỗi lệch: Padding trái 16px (cho chữ), padding phải 6px (ôm sát avatar) */
-  padding: 6px 6px 6px 16px; 
-  border-radius: 30px;
-  border: 1px solid var(--border);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-  cursor: pointer;
-  transition: background-color 0.2s;
+  gap: 12px;
 }
 
-.nav-profile:hover {
-  background: #f8fafc;
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.3;
 }
 
 .user-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-main);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--nav-text-main);
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.user-role {
+  color: var(--nav-text-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .avatar {
-  background-color: var(--primary);
-  color: white;
-  width: 28px;
-  height: 28px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  font-weight: bold;
+  background: #1e293b; /* Dark slate */
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 2px solid #ffffff; /* Viền trắng bọc avatar */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.nav-divider {
+  width: 1px;
+  height: 24px;
+  background-color: rgba(15, 23, 42, 0.1);
+  margin: 0 4px;
+}
+
+/* ================== BUTTONS ================== */
+.nav-btn {
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Nút Logout: Hover ra màu cảnh báo đỏ nhẹ nhàng */
+.btn-logout {
+  background: transparent;
+  color: var(--nav-text-muted);
+}
+
+.btn-logout:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Nút Login: Đổi sang phong cách Tối Giản Đen Nhám */
+.btn-primary {
+  background: var(--nav-text-main);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+}
+
+.btn-primary:hover {
+  background: #1e293b;
+  transform: translateY(-2px); /* Nhấc nhẹ lên khi hover */
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25);
+}
+
+/* ================== RESPONSIVE VƯỢT TRỘI ================== */
+@media (max-width: 900px) {
+  .user-meta { display: none; } /* Giấu tên trên iPad để gọn */
+}
+
+@media (max-width: 640px) {
+  .navbar-wrapper {
+    top: 0;
+    padding: 0; /* Cho dính sát 2 biên trên mobile */
+  }
+
+  .nav-container {
+    border-radius: 0 0 24px 24px; /* Hủy viên thuốc, thành bo góc dưới */
+    flex-wrap: wrap;
+    padding: 16px;
+    gap: 16px;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  .nav-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .nav-links {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .nav-link {
+    flex: 1;
+    justify-content: center;
+  }
 }
