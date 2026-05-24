@@ -32,7 +32,7 @@ export default function Feedback() {
   const normalizeFeedback = (raw) => {
     const data = raw?.feedback || raw;
 
-    if (data?.is_empty_week) {
+    if (!data || raw?.is_empty_week === true) {
       return {
         is_empty_week: true,
         progress_summary: null,
@@ -42,10 +42,11 @@ export default function Feedback() {
     }
 
     return {
-      is_empty_week: false,
+      is_empty_week: data?.is_empty_week === true,
+
       progress_summary:
         data?.progress_summary ||
-        data?.progressSummary ||
+        data?.summary ||
         '',
 
       strengths: Array.isArray(data?.strengths)
@@ -58,8 +59,8 @@ export default function Feedback() {
         ? data.areas
         : Array.isArray(data?.areas_to_improve)
           ? data.areas_to_improve
-          : data?.areas
-            ? [String(data.areas)]
+          : data?.improvements
+            ? [String(data.improvements)]
             : []
     };
   };
@@ -172,15 +173,15 @@ export default function Feedback() {
             View History
           </button>
 
-          {!isEmptyWeek && (
-            <button
-              className="btn-primary"
-              onClick={generateFeedback}
-              disabled={loading}
-            >
-              {loading ? 'Generating...' : 'Generate Feedback'}
-            </button>
-          )}
+        {isEmptyWeek && (
+          <button
+            className="btn-primary"
+            onClick={generateFeedback}
+            disabled={loading}
+          >
+            {loading ? 'Generating...' : 'Generate Feedback'}
+          </button>
+        )}
         </div>
       </div>
 
@@ -202,11 +203,7 @@ export default function Feedback() {
 
           <FeedbackCard title="Strengths">
             {strengths.length ? (
-              <ul>
-                {strengths.map((s, i) => (
-                  <li key={i}>{s}</li>
-                ))}
-              </ul>
+              <div>{strengths.join(' ')}</div>
             ) : (
               <div className="empty">No strengths yet.</div>
             )}
@@ -214,11 +211,7 @@ export default function Feedback() {
 
           <FeedbackCard title="Areas to Improve">
             {areas.length ? (
-              <ul>
-                {areas.map((a, i) => (
-                  <li key={i}>{a}</li>
-                ))}
-              </ul>
+              <div>{areas.join(' ')}</div>
             ) : (
               <div className="empty">No improvement areas yet.</div>
             )}

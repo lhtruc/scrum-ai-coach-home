@@ -329,17 +329,30 @@ def get_feedback_history(current_user=Depends(verify_token)):
 
 
 @app.get("/api/feedback/current")
-def get_current_feedback(current_user = Depends(verify_token)):
-    """Return the current week's feedback summary for the authenticated user.
+def get_current_feedback(current_user=Depends(verify_token)):
+    account = get_account_profile_by_auth_id(current_user.id)
+    user_id = account["user_id"]
+    today = datetime.utcnow().date().isoformat()
 
-    This is a lightweight endpoint used by the frontend during initial rollout.
-    It returns an 'empty week' structure when no feedback has been generated yet.
-    """
+    result = (
+        supabase
+        .table("weekly_feedbacks")
+        .select("*")
+        .eq("user_id", user_id)
+        .eq("week_date", today)
+        .limit(1)
+        .execute()
+    )
+
+    if not result.data:
+        return {
+            "is_empty_week": True,
+            "feedback": None
+        }
+
     return {
-        "is_empty_week": True,
-        "progress_summary": None,
-        "strengths": [],
-        "areas": []
+        "is_empty_week": result.data[0].get("is_empty_week", False),
+        "feedback": result.data[0]
     }
 # =========================
 # API: SKILLS
@@ -664,10 +677,12 @@ def get_main_dashboard_summary(current_user=Depends(verify_token)):
 @app.post("/api/feedback/generate")
 def generate_weekly_feedback(current_user=Depends(verify_token)):
     try:
-        one_week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+        account = get_account_profile_by_auth_id(current_user.id)
+        user_id = account["user_id"]
+        account_role = account["role"]
+        account_name = account["name"]
         today = datetime.utcnow().date().isoformat()
-        account_role = "Student"
-        account_name = "User"
+        one_week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
 
         try:
             account_result = (
@@ -682,7 +697,7 @@ def generate_weekly_feedback(current_user=Depends(verify_token)):
             if account_result.data:
                 account = account_result.data[0]
                 account_role = account.get("role") or "Student"
-                account_name = account.get("name") or current_user.email or "User"
+                account_name = account.get("display_name") or account.get("email") or current_user.email or "User"
         except Exception:
             pass
 
@@ -702,7 +717,7 @@ def generate_weekly_feedback(current_user=Depends(verify_token)):
             supabase
             .table("weekly_feedbacks")
             .select("*")
-            .eq("user_id", current_user.id)
+            .eq("user_id", user_id)
             .eq("week_date", today)
             .execute()
         )
@@ -717,7 +732,7 @@ def generate_weekly_feedback(current_user=Depends(verify_token)):
             supabase
             .table("action_steps")
             .select("*")
-            .eq("user_id", current_user.id)
+            .eq("user_id", user_id)
             .eq("is_completed", True)
             .gte("created_at", one_week_ago)
             .execute()
@@ -736,7 +751,7 @@ def generate_weekly_feedback(current_user=Depends(verify_token)):
                 empty_improvements = "Next week, complete one small applied task that can be reused in your work or project."
 
             feedback_data = {
-                "user_id": current_user.id,
+                "user_id": user_id,
                 "week_date": datetime.utcnow().date().isoformat(),
                 "summary": empty_summary,
                 "strengths": empty_strengths,
@@ -764,7 +779,7 @@ def generate_weekly_feedback(current_user=Depends(verify_token)):
                 supabase
                 .table("user_goals")
                 .select("id, goal_title, goal_technique, feasibility, created_at")
-                .eq("user_id", current_user.id)
+                .eq("user_id", user_id)
                 .order("created_at", desc=True)
                 .limit(1)
                 .execute()
@@ -866,7 +881,7 @@ Rules:
         ai_feedback = json.loads(ai_text)
 
         feedback_data = {
-            "user_id": current_user.id,
+            "user_id": user_id,
             "week_date": datetime.utcnow().date().isoformat(),
             "summary": ai_feedback["summary"],
             "strengths": ai_feedback["strengths"],
@@ -954,6 +969,33 @@ def sync_account(current_user=Depends(verify_token)):
     return {
         "message": "Account synced successfully",
         "account": result.data
+    }
+
+@app.get("/api/feedback/current")
+def get_current_feedback(current_user=Depends(verify_token)):
+    account = get_account_profile_by_auth_id(current_user.id)
+    user_id = account["user_id"]
+    today = datetime.utcnow().date().isoformat()
+
+    result = (
+        supabase
+        .table("weekly_feedbacks")
+        .select("*")
+        .eq("user_id", user_id)
+        .eq("week_date", today)
+        .limit(1)
+        .execute()
+    )
+
+    if not result.data:
+        return {
+            "is_empty_week": True,
+            "feedback": None
+        }
+
+    return {
+        "is_empty_week": result.data[0].get("is_empty_week", False),
+        "feedback": result.data[0]
     }
 
 @app.post("/api/actions/revise")
