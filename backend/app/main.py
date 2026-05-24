@@ -80,7 +80,9 @@ class ProfileUpdateRequest(BaseModel):
     role: str | None = None
 
 class PasswordUpdateRequest(BaseModel):
+    current_password: str
     new_password: str
+    confirm_password: str
 # =========================
 # UTILS
 # =========================
@@ -173,7 +175,20 @@ def update_password(
             detail="Password must be at least 8 characters"
         )
 
+    if data.new_password != data.confirm_password:
+        raise HTTPException(
+            status_code=400,
+            detail="Confirm password does not match"
+        )
+
     try:
+        # Verify current password first
+        supabase.auth.sign_in_with_password({
+            "email": current_user.email,
+            "password": data.current_password
+        })
+
+        # Then update to new password
         supabase.auth.update_user({
             "password": data.new_password
         })
@@ -182,10 +197,10 @@ def update_password(
             "message": "Password updated successfully"
         }
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
-            status_code=500,
-            detail=str(e)
+            status_code=400,
+            detail="Current password is incorrect or password update failed"
         )
 
 @app.put("/api/users/profile")
@@ -281,6 +296,7 @@ def get_user_profile(current_user=Depends(verify_token)):
             "profile": {
                 "id": current_user.id,
                 "email": current_user.email,
+                "display_name": profile.get("display_name"),
                 "role": profile.get("role")
             }
         }

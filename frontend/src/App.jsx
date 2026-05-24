@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import RegisterPage from "./pages/RegisterPage";
 import ActionPlan from "./pages/ActionPlan";
 import RequireAuth from "./components/RequireAuth";
+import Settings from "./pages/Settings";
 
 export default function App() {
   return (
@@ -30,6 +31,15 @@ export default function App() {
             element={
               <RequireAuth>
                 <ActionPlan />
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/settings"
+            element={
+              <RequireAuth>
+                <Settings />
               </RequireAuth>
             }
           />
