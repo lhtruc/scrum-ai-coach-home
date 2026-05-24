@@ -267,6 +267,12 @@
 .step-meta-pill.metric {
   background: #eff6ff;
   color: #1d4ed8;
+  border-radius: 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+  line-height: 1.4;
 }
 
 .step-meta-pill.deadline {

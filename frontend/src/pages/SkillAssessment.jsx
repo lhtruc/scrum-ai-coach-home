@@ -11,13 +11,27 @@ const RATING_LEGEND = [
   { score: 5, label: 'Expert', desc: 'Mastery, deep knowledge' }
 ];
 
+const getStoredUserProfile = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user_profile') || '{}');
+  } catch {
+    return {};
+  }
+};
+
 export default function SkillAssessment() {
   const [courses, setCourses] = useState([]);
   const [view, setView] = useState('LIST'); 
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedLevel, setSelectedLevel] = useState(null);
+  const userProfile = getStoredUserProfile();
+  const currentUserId = userProfile?.id || '';
+  const currentUserName = userProfile?.display_name || userProfile?.email || 'User';
 
   useEffect(() => {
+    assessmentApi.getCurrentUser()
+      .then(data => setCurrentUser(data.user))
+      .catch(err => console.error("Error loading current user:", err));
     assessmentApi.getSkills()
       .then(data => {
         if (data && data.skills) {
@@ -38,7 +52,6 @@ export default function SkillAssessment() {
     setView('GENERATING'); 
 
     const payload = {
-      user_id: "test-user-id-123", 
       ratings: [
         {
           skill_name: selectedCourse.name,
@@ -66,8 +79,8 @@ export default function SkillAssessment() {
   if (view === 'RESULT') {
     return (
       <GoalSelection 
-        userId="test-user-id-123"
-        userName="Trực"
+        userId={currentUserId}
+        userName={currentUserName}
         skillName={selectedCourse.name}
         ratingLevel={selectedLevel}
         onResetFlow={handleReselect} // Khi nhấn nút hoàn tất, reset flow về màn hình LIST ban đầu
