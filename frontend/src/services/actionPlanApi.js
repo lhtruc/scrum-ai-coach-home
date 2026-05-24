@@ -1,42 +1,87 @@
+import supabase from './supabaseClient';
+
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
+async function getAuthHeaders() {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  if (!token) {
+    throw new Error('No access token found. Please log in again.');
+  }
+
+  localStorage.setItem('access_token', token);
+
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`
+  };
+}
+
 const actionPlanApi = {
-  // POST /api/actions/generate — AI generates and saves SMART steps for a goal
   generateActionPlan: async (payload) => {
+    const headers = await getAuthHeaders();
+
     const response = await fetch(`${API_BASE_URL}/actions/generate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to generate action plan');
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to generate action plan');
+    }
+
     return await response.json();
   },
 
-  // GET /api/goals/{goal_id}/actions — fetch existing steps for a goal
   getActionSteps: async (goalId) => {
-    const response = await fetch(`${API_BASE_URL}/goals/${goalId}/actions`);
-    if (!response.ok) throw new Error('Failed to fetch action steps');
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/goals/${goalId}/actions`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to fetch action steps');
+    }
+
     return await response.json();
   },
 
-  // PUT /api/actions/{step_id}/status — toggle step complete/incomplete
   updateStepStatus: async (stepId, isCompleted) => {
+    const headers = await getAuthHeaders();
+
     const response = await fetch(`${API_BASE_URL}/actions/${stepId}/status`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ is_completed: isCompleted })
     });
-    if (!response.ok) throw new Error('Failed to update step status');
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to update step status');
+    }
+
     return await response.json();
   },
 
-  // GET /api/goals/active/stats — fetch the active goal + stats for a user
-  getActiveGoalStats: async (userId) => {
-    const url = userId
-      ? `${API_BASE_URL}/goals/active/stats?user_id=${userId}`
-      : `${API_BASE_URL}/goals/active/stats`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Failed to fetch active goal stats');
+  getActiveGoalStats: async () => {
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/goals/active/stats`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to fetch active goal stats');
+    }
+
     return await response.json();
   }
 };

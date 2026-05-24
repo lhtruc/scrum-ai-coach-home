@@ -101,45 +101,30 @@ def get_account_context_from_supabase(user_id: Optional[str], fallback_name: Opt
     if not user_id:
         return default_context
 
-    try:
-        response = (
-            supabase
-            .table("accounts")
-            .select("*")
-            .eq("user_id", user_id)
-            .limit(1)
-            .execute()
-        )
+    lookup_columns = ["id", "auth_uid"]
 
-        if response.data:
-            account = response.data[0]
-            return {
-                "user_id": user_id,
-                "name": account.get("name") or fallback_name or "User",
-                "role": account.get("role") or "Student"
-            }
-    except Exception:
-        pass
+    for column in lookup_columns:
+        try:
+            response = (
+                supabase
+                .table("accounts")
+                .select("id, auth_uid, email, role, display_name")
+                .eq(column, user_id)
+                .limit(1)
+                .execute()
+            )
 
-    try:
-        response = (
-            supabase
-            .table("accounts")
-            .select("*")
-            .eq("auth_uid", user_id)
-            .limit(1)
-            .execute()
-        )
+            if response.data:
+                account = response.data[0]
 
-        if response.data:
-            account = response.data[0]
-            return {
-                "user_id": user_id,
-                "name": account.get("name") or fallback_name or "User",
-                "role": account.get("role") or "Student"
-            }
-    except Exception:
-        pass
+                return {
+                    "user_id": account.get("id"),
+                    "auth_uid": account.get("auth_uid"),
+                    "name": account.get("display_name") or account.get("email") or fallback_name or "User",
+                    "role": account.get("role") or "Student"
+                }
+        except Exception:
+            pass
 
     return default_context
 

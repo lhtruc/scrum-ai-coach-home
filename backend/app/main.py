@@ -337,101 +337,196 @@ def get_skills():
 
 @app.get("/api/skills/profile")
 def get_skill_profile(current_user=Depends(verify_token)):
-    user_id = current_user.id
-    result = supabase.table("user_skills") \
-        .select("*") \
-        .eq("user_id", user_id) \
-        .order("skills_name") \
+    account = get_account_profile_by_auth_id(current_user.id)
+    user_id = account["user_id"]
+
+    result = (
+        supabase
+        .table("user_skills")
+        .select("*")
+        .eq("user_id", user_id)
+        .order("skills_name")
         .execute()
+    )
 
     if not result.data:
-        return {"message": "No profile found", "summary": None}
+        return {
+            "message": "No profile found",
+            "summary": None
+        }
 
-    summary = [{
-        "skill_name": item["skills_name"],
-        "rating_level": item["rating_level"],
-        "level": get_level_from_rating(item["rating_level"])
-    } for item in result.data]
+    summary = [
+        {
+            "skill_name": item["skills_name"],
+            "rating_level": item["rating_level"],
+            "level": get_level_from_rating(item["rating_level"])
+        }
+        for item in result.data
+    ]
 
     return {
         "message": "Skill profile fetched successfully",
         "summary": {
             "user_id": user_id,
+            "name": account["name"],
+            "role": account["role"],
             "ratings": summary
         }
     }
 
 @app.post("/api/skills/assess")
 def assess_skills(data: SkillAssessmentRequest, current_user=Depends(verify_token)):
-    user_id = current_user.id
-    rows = [{
-        "user_id": user_id,
-        "skills_name": item.skill_name,
-        "rating_level": item.rating_level
-    } for item in data.ratings]
+    account = get_account_profile_by_auth_id(current_user.id)
+    user_id = account["user_id"]
 
-    result = supabase.table("user_skills").upsert(
-        rows,
-        on_conflict="user_id,skills_name"
-    ).execute()
+    rows = [
+        {
+            "user_id": user_id,
+            "skills_name": item.skill_name,
+            "rating_level": item.rating_level
+        }
+        for item in data.ratings
+    ]
 
-    summary = [{
-        "skill_name": item.skill_name,
-        "rating_level": item.rating_level,
-        "level": get_level_from_rating(item.rating_level)
-    } for item in data.ratings]
+    result = (
+        supabase
+        .table("user_skills")
+        .upsert(
+            rows,
+            on_conflict="user_id,skills_name"
+        )
+        .execute()
+    )
+
+    summary = [
+        {
+            "skill_name": item.skill_name,
+            "rating_level": item.rating_level,
+            "level": get_level_from_rating(item.rating_level)
+        }
+        for item in data.ratings
+    ]
 
     return {
         "message": "Skill assessment saved successfully",
-        "summary": {"user_id": user_id, "ratings": summary},
+        "summary": {
+            "user_id": user_id,
+            "name": account["name"],
+            "role": account["role"],
+            "ratings": summary
+        }
     }
 
 # =========================
 # API: GOALS & ACTIONS
 # =========================
+def get_account_profile_by_auth_id(auth_uid: str) -> dict:
+    result = (
+        supabase
+        .table("accounts")
+        .select("id, auth_uid, email, role, display_name")
+        .eq("auth_uid", auth_uid)
+        .limit(1)
+        .execute()
+    )
+
+    if not result.data:
+        return {
+            "account_id": auth_uid,
+            "user_id": auth_uid,
+            "auth_uid": auth_uid,
+            "name": "User",
+            "role": "Student"
+        }
+
+    account = result.data[0]
+
+    return {
+        "account_id": account.get("id"),
+        "user_id": account.get("id"),
+        "auth_uid": account.get("auth_uid"),
+        "email": account.get("email"),
+        "name": account.get("display_name") or account.get("email") or "User",
+        "role": account.get("role") or "Student"
+    }
+
+
 @app.post("/api/goals/suggest")
-def suggest_goals(data: GoalSuggestRequest):
+def suggest_goals(data: GoalSuggestRequest, current_user=Depends(verify_token)):
+    account = get_account_profile_by_auth_id(current_user.id)
+
+    data.user_id = account["user_id"]
+    data.name = account["name"]
+
     goals = suggest_goals_by_ai(data)
+
     return {
         "message": "Goal suggestions generated successfully",
-        "user_id": data.user_id,
-        "name": data.name,
+        "user": account,
         "goals": goals
     }
 
+
 @app.post("/api/goals/custom/refine")
-def refine_custom_goal(data: GoalCustomRefineRequest):
+def refine_custom_goal(data: GoalCustomRefineRequest, current_user=Depends(verify_token)):
+    account = get_account_profile_by_auth_id(current_user.id)
+
+    data.user_id = account["user_id"]
+    data.name = account["name"]
+
     result = refine_custom_goal_by_ai(data)
+    result["user"] = account
+
     return result
 
+
 @app.post("/api/goals/validate")
-def validate_goal(data: GoalValidateRequest):
+def validate_goal(data: GoalValidateRequest, current_user=Depends(verify_token)):
+    account = get_account_profile_by_auth_id(current_user.id)
+
+    data.user_id = account["user_id"]
+    data.name = account["name"]
+
     result = validate_goal_by_ai(data)
+
     return {
         "message": "Goal validation completed",
-        "user_id": data.user_id,
-        "name": data.name,
+        "user": account,
         "result": result
     }
 
+
 @app.post("/api/goals/confirm")
-def confirm_goal(data: GoalConfirmRequest):
+def confirm_goal(data: GoalConfirmRequest, current_user=Depends(verify_token)):
+    account = get_account_profile_by_auth_id(current_user.id)
+
+    data.user_id = account["user_id"]
+    data.name = account["name"]
+
     saved_goal = save_goal_to_supabase(data)
+
     return {
         "message": "Goal saved to Supabase successfully",
+        "user": account,
         "saved_goal": saved_goal
     }
 
 @app.post("/api/actions/generate")
-def generate_action_plan(data: ActionGenerateRequest):
+def generate_action_plan(data: ActionGenerateRequest, current_user=Depends(verify_token)):
+    account = get_account_profile_by_auth_id(current_user.id)
+
     validate_goal_exists(data.goal_id)
+
     steps = generate_action_steps_by_ai(data)
+
     saved_steps = save_action_steps_to_supabase(
         goal_id=data.goal_id,
         steps=steps
     )
+
     return {
         "message": "SMART action plan generated and saved successfully",
+        "user": account,
         "goal_id": data.goal_id,
         "steps": saved_steps
     }
@@ -460,10 +555,15 @@ def get_goal_action_steps(goal_id: int):
     }
 
 @app.get("/api/goals/active/stats")
-def get_active_goal_dashboard_stats(user_id: str | None = None):
+def get_active_goal_dashboard_stats(current_user=Depends(verify_token)):
+    account = get_account_profile_by_auth_id(current_user.id)
+    user_id = account["user_id"]
+
     result = get_active_goal_stats(user_id)
+
     return {
         "message": "Active goal statistics fetched successfully",
+        "user": account,
         "active_goal": result["active_goal"],
         "statistics": {
             "total_steps": result["total_steps"],
@@ -480,36 +580,37 @@ def get_active_goal_dashboard_stats(user_id: str | None = None):
 # API: DASHBOARD (Nhánh Phat)
 # =========================
 @app.get("/api/dashboard/summary")
-def get_main_dashboard_summary(user_id: str | None = None):
+def get_main_dashboard_summary(current_user=Depends(verify_token)):
+    account = get_account_profile_by_auth_id(current_user.id)
+    user_id = account["user_id"]
+
     goal_query = (
         supabase
         .table("user_goals")
         .select("id, user_id, name, goal_title, goal_technique, feasibility, created_at")
+        .eq("user_id", user_id)
         .order("created_at", desc=True)
         .limit(1)
     )
-    if user_id:
-        goal_query = goal_query.eq("user_id", user_id)
-        
+
     try:
         goal_response = goal_query.execute()
         goals = goal_response.data or []
     except Exception as e:
         print("Error fetching goals for summary:", e)
         goals = []
-    
-    user_name = "User"
-    user_role = "Employee/Student"
+
+    user_name = account["name"]
+    user_role = account["role"]
     current_goal = None
     progress_percentage = 0
     next_action_step = None
-    
+
     if goals:
         active_goal = goals[0]
-        user_name = active_goal.get("name") or "User"
-        current_goal = active_goal.get("goal_title") or active_goal.get("name")
+        current_goal = active_goal.get("goal_title")
         goal_id = active_goal["id"]
-        
+
         try:
             steps_response = (
                 supabase
@@ -523,16 +624,17 @@ def get_main_dashboard_summary(user_id: str | None = None):
         except Exception as e:
             print("Error fetching action steps for summary:", e)
             steps = []
-        
+
         total_steps = len(steps)
         completed_steps = sum(1 for step in steps if step.get("is_completed") is True)
+
         if total_steps > 0:
             progress_percentage = round((completed_steps / total_steps) * 100)
-            
+
         incomplete_steps = [step for step in steps if not step.get("is_completed")]
         if incomplete_steps:
             next_action_step = incomplete_steps[0].get("title")
-            
+
     return {
         "user_name": user_name,
         "user_role": user_role,
