@@ -1,27 +1,25 @@
+import supabase from './supabaseClient';
+
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
-// ==========================================
-// [Xử lý Merge Conflict: Chọn nhánh main]
-// Comment lại code của nhánh frontend-view-skill-profile
-// ==========================================
+const getAuthHeaders = async () => {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
 
-// const getAuthHeaders = () => {
-//   const token = localStorage.getItem('jwt_token');
-// 
-//   return {
-//     'Content-Type': 'application/json',
-//     Authorization: `Bearer ${token}`
-//   };
-// };
+  if (!token) {
+    throw new Error('No access token found. Please log in again.');
+  }
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('access_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  localStorage.setItem('access_token', token);
+
+  return {
+    Authorization: `Bearer ${token}`
+  };
 };
 
-const getJsonHeaders = ({ auth = false } = {}) => ({
+const getJsonHeaders = async ({ auth = false } = {}) => ({
   'Content-Type': 'application/json',
-  ...(auth ? getAuthHeaders() : {})
+  ...(auth ? await getAuthHeaders() : {})
 });
 
 const assessmentApi = {
@@ -37,7 +35,7 @@ const assessmentApi = {
   getCurrentUser: async () => {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       method: 'GET',
-      headers: getAuthHeaders() // GET không cần Content-Type nên dùng getAuthHeaders là đúng
+      headers: await getAuthHeaders() // GET không cần Content-Type nên dùng getAuthHeaders là đúng
     });
 
     if (!response.ok) throw new Error('Failed to get current user');
@@ -49,7 +47,7 @@ const assessmentApi = {
     const response = await fetch(`${API_BASE_URL}/skills/assess`, {
       method: 'POST',
       // headers: getAuthHeaders(), // -> Code cũ của frontend-view-skill-profile
-      headers: getJsonHeaders({ auth: true }), // -> Code mới của main
+      headers: await getJsonHeaders({ auth: true }), // -> Code mới của main
       body: JSON.stringify(payload)
     });
 
@@ -63,7 +61,7 @@ const assessmentApi = {
     const response = await fetch(`${API_BASE_URL}/goals/suggest`, {
       method: 'POST',
       // headers: getAuthHeaders(), // -> Code cũ bị thiếu Content-Type
-      headers: getJsonHeaders({ auth: true }),
+      headers: await getJsonHeaders({ auth: true }),
       body: JSON.stringify(payload)
     });
 
@@ -77,7 +75,7 @@ const assessmentApi = {
     const response = await fetch(`${API_BASE_URL}/goals/custom/refine`, {
       method: 'POST',
       // headers: getAuthHeaders(), // -> Code cũ bị thiếu Content-Type
-      headers: getJsonHeaders({ auth: true }),
+      headers: await getJsonHeaders({ auth: true }),
       body: JSON.stringify(payload)
     });
 
@@ -91,7 +89,7 @@ const assessmentApi = {
     const response = await fetch(`${API_BASE_URL}/goals/confirm`, {
       method: 'POST',
       // headers: getAuthHeaders(), // -> Code cũ bị thiếu Content-Type
-      headers: getJsonHeaders({ auth: true }),
+      headers: await getJsonHeaders({ auth: true }),
       body: JSON.stringify(payload)
     });
 
@@ -102,8 +100,10 @@ const assessmentApi = {
   },
 
   getGoalActionSteps: async (goalId) => {
-    const response = await fetch(`${API_BASE_URL}/goals/${goalId}/actions`);
-
+    const response = await fetch(`${API_BASE_URL}/goals/${goalId}/actions`, {
+      method: 'GET',
+      headers: await getAuthHeaders()
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch goal action steps');
     }
@@ -115,7 +115,7 @@ const assessmentApi = {
     const response = await fetch(`${API_BASE_URL}/actions/${stepId}/status`, {
       method: 'PUT',
       // headers: { 'Content-Type': 'application/json' }, // -> Code cũ 
-      headers: getJsonHeaders({ auth: true }), // Đổi luôn qua getJsonHeaders cho đồng bộ
+      headers: await getJsonHeaders({ auth: true }), // Đổi luôn qua getJsonHeaders cho đồng bộ
       body: JSON.stringify({
         is_completed: isCompleted
       })

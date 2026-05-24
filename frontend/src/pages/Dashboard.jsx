@@ -1,7 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import supabase from '../services/supabaseClient';
 import './Dashboard.css';
 import Feedback from './Feedback';
+
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
+
+async function getAuthHeaders() {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  if (!token) {
+    throw new Error('No access token found. Please log in again.');
+  }
+
+  localStorage.setItem('access_token', token);
+
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`
+  };
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -11,10 +30,6 @@ export default function Dashboard() {
   const [selectedRole, setSelectedRole] = useState('Employee');
 
   useEffect(() => {
-    const userProfile = JSON.parse(localStorage.getItem('user_profile') || 'null');
-    const userId = userProfile?.id || null;
-    
-    // Load local storage role selection if any
     const savedRole = localStorage.getItem('user_role');
     if (savedRole) {
       setSelectedRole(savedRole);
@@ -22,12 +37,25 @@ export default function Dashboard() {
 
     const fetchSummary = async () => {
       try {
-        const url = userId
-          ? `http://127.0.0.1:8000/api/dashboard/summary?user_id=${userId}`
-          : 'http://127.0.0.1:8000/api/dashboard/summary';
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch dashboard summary');
+        const headers = await getAuthHeaders();
+
+        const response = await fetch(`${API_BASE_URL}/dashboard/summary`, {
+          method: 'GET',
+          headers
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || 'Failed to fetch dashboard summary');
+        }
+
         const summaryData = await response.json();
+
+        if (summaryData.user_role) {
+          setSelectedRole(summaryData.user_role);
+          localStorage.setItem('user_role', summaryData.user_role);
+        }
+
         setData(summaryData);
         setLoading(false);
       } catch (err) {
@@ -40,12 +68,12 @@ export default function Dashboard() {
     fetchSummary();
   }, []);
 
-  // Update selectedRole reactively if changed in settings or elsewhere
   useEffect(() => {
     const handleStorageChange = () => {
       const savedRole = localStorage.getItem('user_role');
       if (savedRole) setSelectedRole(savedRole);
     };
+
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
@@ -64,29 +92,28 @@ export default function Dashboard() {
       <div className="dashboard-error">
         <div className="error-card">
           <p>{errorMsg}</p>
-          <button className="btn btn-primary" onClick={() => window.location.reload()}>Retry</button>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>
+            Retry
+          </button>
         </div>
       </div>
     );
   }
 
-  const { user_name, current_goal, progress_percentage, next_action_step } = data || {};
+  const { user_name, user_role, current_goal, progress_percentage, next_action_step } = data || {};
 
   return (
     <div className="main-dashboard-view">
-      {/* Welcome Header */}
       <header className="dashboard-header">
         <h1 className="welcome-message">
-          Welcome, <span className="highlight-text">{user_name}</span> ({selectedRole})
+          Welcome, <span className="highlight-text">{user_name || 'User'}</span> ({user_role || selectedRole})
         </h1>
         <p className="dashboard-subtitle">
           Here is your custom learning progress summary for today.
         </p>
       </header>
 
-      {/* 3 Distinct UI Summary Cards/Widgets */}
       <section className="summary-widgets">
-        {/* Widget 1: Current Goal */}
         <div className="widget-card goal-widget">
           <div>
             <span className="widget-label">Current Goal</span>
@@ -94,12 +121,13 @@ export default function Dashboard() {
               {current_goal || 'No Active Goal'}
             </h3>
             <p className="widget-desc">
-              {current_goal 
-                ? 'Your currently activated Scrum learning sprint.' 
+              {current_goal
+                ? 'Your currently activated Scrum learning sprint.'
                 : 'Setup a skill rating to receive custom goals from AI Coach.'
               }
             </p>
           </div>
+
           {current_goal ? (
             <Link to="/skills" className="widget-link">Manage Goal</Link>
           ) : (
@@ -107,25 +135,25 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Widget 2: Progress % */}
         <div className="widget-card progress-widget">
           <div>
             <span className="widget-label">Progress %</span>
             <div className="progress-value-container">
-              <span className="progress-num">{progress_percentage}%</span>
+              <span className="progress-num">{progress_percentage || 0}%</span>
               <span className="progress-sub">Completed</span>
             </div>
+
             <div className="widget-progress-bar-track">
-              <div 
-                className="widget-progress-bar-fill" 
-                style={{ width: `${progress_percentage}%` }}
+              <div
+                className="widget-progress-bar-fill"
+                style={{ width: `${progress_percentage || 0}%` }}
               />
             </div>
           </div>
+
           <Link to="/progress" className="widget-link">Track Progress</Link>
         </div>
 
-        {/* Widget 3: Next Action Step */}
         <div className="widget-card next-step-widget">
           <div>
             <span className="widget-label">Next Action Step</span>
@@ -133,50 +161,49 @@ export default function Dashboard() {
               {next_action_step || 'None'}
             </h3>
             <p className="widget-desc">
-              {current_goal 
-                ? 'Finish this SMART step to level up your capability.' 
-                : 'Goal action plan will suggest next steps.'
+              {current_goal
+                ? 'Finish this SMART step to level up your capability.'
+                : 'Create your first goal to receive next steps.'
               }
             </p>
           </div>
-          {current_goal && (
-            <Link to="/action-plan" className="widget-link">Open Action Plan</Link>
-          )}
+
+          <Link to="/progress" className="widget-link">View Action Plan</Link>
         </div>
       </section>
 
-      {/* Navigation & Shortcuts Section */}
       <section className="dashboard-shortcuts-section">
-        <h2 className="section-title">Quick Actions</h2>
+        <h2 className="section-title">Quick Navigation</h2>
+
         <div className="shortcuts-grid">
           <div className="shortcut-item-card" onClick={() => navigate('/skills')}>
             <h4>Skill Profile</h4>
-            <p>Update skill rating levels and view coach analysis.</p>
+            <p>Review your assessed skills and learning level.</p>
           </div>
-          <div className="shortcut-item-card" onClick={() => navigate('/skills')}>
-            <h4>Goal Setting</h4>
-            <p>Select recommended or customize your learning roadmaps.</p>
+
+          <div className="shortcut-item-card" onClick={() => navigate('/goal')}>
+            <h4>Goal</h4>
+            <p>Create, refine, validate, and save your learning goal.</p>
           </div>
+
           <div className="shortcut-item-card" onClick={() => navigate('/action-plan')}>
             <h4>Action Plan</h4>
-            <p>Manage and regenerate dynamic AI-generated SMART steps.</p>
+            <p>Generate SMART action milestones for your confirmed goal.</p>
           </div>
+
           <div className="shortcut-item-card" onClick={() => navigate('/progress')}>
-            <h4>Progress Dashboard</h4>
-            <p>Detailed statistics and step checklist toggles.</p>
+            <h4>Progress</h4>
+            <p>Track completed and pending action steps.</p>
           </div>
+
           <div className="shortcut-item-card" onClick={() => navigate('/settings')}>
             <h4>Settings</h4>
-            <p>Manage your account settings and preferences.</p>
+            <p>Manage role and profile preferences.</p>
           </div>
         </div>
       </section>
 
-      {/* Weekly Feedback (inline) */}
-      <section className="dashboard-feedback-section">
-        <h2 className="section-title">Weekly Feedback</h2>
-        <Feedback />
-      </section>
+      <Feedback />
     </div>
   );
 }
