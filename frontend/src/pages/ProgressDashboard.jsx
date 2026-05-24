@@ -108,6 +108,9 @@ export default function ProgressDashboard() {
 
   // view: 'LOADING' | 'READY' | 'ERROR'
   const [view, setView] = useState('LOADING');
+  const [goals, setGoals] = useState([]);
+  const [selectedGoalId, setSelectedGoalId] = useState('');
+  const [isGoalPickerOpen, setIsGoalPickerOpen] = useState(false);
   const [goal, setGoal] = useState(null);
   const [steps, setSteps] = useState([]);
   const [stats, setStats] = useState({
@@ -121,6 +124,15 @@ export default function ProgressDashboard() {
   // [Lấy từ nhánh: main] - Quản lý trạng thái mở Modal
   const [reviseOpen, setReviseOpen] = useState(false);
 
+  const getDeadlineFromSteps = useCallback((stepList, fallbackDeadline = null) => {
+    const deadlines = stepList
+      .map((step) => step.deadline)
+      .filter(Boolean)
+      .sort();
+
+    return deadlines.length > 0 ? deadlines[deadlines.length - 1] : fallbackDeadline;
+  }, []);
+
   // Compute stats from current step list (for optimistic updates)
   const computeStats = useCallback((stepList, deadline) => {
     const total = stepList.length;
@@ -131,36 +143,72 @@ export default function ProgressDashboard() {
     setStats({ total, completed, pending, percentage, daysRemaining, deadline });
   }, []);
 
-  // Fetch active goal stats on mount — GET /api/goals/active/stats
-  useEffect(() => {
-    const userProfile = JSON.parse(localStorage.getItem('user_profile') || 'null');
-    const userId = userProfile?.id || null;
+  const loadGoalProgress = useCallback(async (targetGoal, { keepView = false } = {}) => {
+    if (!targetGoal?.id) {
+      setGoal(null);
+      setSteps([]);
+      computeStats([], null);
+      return;
+    }
 
+    if (!keepView) {
+      setView('LOADING');
+    }
+
+    const [data, overdueInfo] = await Promise.all([
+      actionPlanApi.getActionSteps(targetGoal.id),
+      actionPlanApi.checkOverdue(targetGoal.id).catch(err => {
+        console.error('Check overdue failed:', err);
+        return null;
+      })
+    ]);
+    const fetchedSteps = data.steps || [];
+    const deadline = getDeadlineFromSteps(fetchedSteps, targetGoal.goal_deadline || null);
+
+    setGoal(targetGoal);
+    setSelectedGoalId(String(targetGoal.id));
+    setSteps(fetchedSteps);
+    setOverdue(overdueInfo || null);
+    computeStats(fetchedSteps, deadline);
+    setView('READY');
+  }, [computeStats, getDeadlineFromSteps]);
+
+  useEffect(() => {
     (async () => {
       try {
-        // Fetch active goal stats and overdue info in parallel
-        const [data, overdueInfo] = await Promise.all([
-          actionPlanApi.getActiveGoalStats(userId),
-          actionPlanApi.checkOverdue().catch(err => {
-            console.error('Check overdue failed:', err);
-            return null; // ignore overdue errors
-          })
-        ]);
+        const goalsData = await actionPlanApi.getGoals();
 
-        const fetchedSteps = data.steps || [];
-        const deadline = data.statistics?.goal_deadline || null;
-        setGoal(data.active_goal || null);
-        setSteps(fetchedSteps);
-        computeStats(fetchedSteps, deadline);
-        if (overdueInfo) setOverdue(overdueInfo);
-        setView('READY');
+        const fetchedGoals = goalsData.goals || [];
+
+        if (fetchedGoals.length === 0) {
+          setErrorMsg("You don't have a goal yet. Please create one to get started.");
+          setView('ERROR');
+          return;
+        }
+
+        setGoals(fetchedGoals);
+        await loadGoalProgress(fetchedGoals[0], { keepView: true });
       } catch (err) {
         console.error('Dashboard load error:', err);
-        setErrorMsg("You don't have an active goal yet. Please create one to get started.");
+        setErrorMsg("We couldn't load your progress yet. Please try again.");
         setView('ERROR');
       }
     })();
-  }, [computeStats]);
+  }, [loadGoalProgress]);
+
+  const handleGoalSelect = async (goalId) => {
+    const nextGoal = goals.find((item) => String(item.id) === String(goalId));
+    if (!nextGoal) return;
+
+    try {
+      setIsGoalPickerOpen(false);
+      await loadGoalProgress(nextGoal);
+    } catch (err) {
+      console.error('Goal progress load error:', err);
+      setErrorMsg("We couldn't load progress for this goal. Please try again.");
+      setView('ERROR');
+    }
+  };
 
   // [Lấy từ nhánh: main] - Khởi tạo payload chuẩn xác để gửi vào Modal
   const buildRevisePayload = () => {
@@ -186,16 +234,7 @@ export default function ProgressDashboard() {
 
       await actionPlanApi.bulkUpdate(payload);
 
-      // refresh active goal stats after update
-      const userProfile = JSON.parse(localStorage.getItem('user_profile') || 'null');
-      const userId = userProfile?.id || null;
-      const data = await actionPlanApi.getActiveGoalStats(userId);
-      const fetchedSteps = data.steps || [];
-      const deadline = data.statistics?.goal_deadline || null;
-      
-      setGoal(data.active_goal || null);
-      setSteps(fetchedSteps);
-      computeStats(fetchedSteps, deadline);
+      await loadGoalProgress(goal, { keepView: true });
       setReviseOpen(false);
     } catch (err) {
       console.error('Apply revision failed:', err);
@@ -215,6 +254,10 @@ export default function ProgressDashboard() {
 
     try {
       await actionPlanApi.updateStepStatus(stepId, newStatus);
+      if (goal?.id) {
+        const overdueInfo = await actionPlanApi.checkOverdue(goal.id);
+        setOverdue(overdueInfo);
+      }
     } catch (err) {
       console.error('Toggle step error:', err);
       // Rollback on failure (invert status of the single step)
@@ -284,6 +327,85 @@ export default function ProgressDashboard() {
         <p className="subtitle">Track your learning journey at a glance.</p>
       </div>
 
+      {goals.length > 0 && (
+        <div className="goal-picker" id="dashboard-goal-picker">
+          <div>
+            <span className="goal-picker-label">Selected Goal</span>
+            <h2>{goal?.goal_title || goal?.name || 'Choose a goal'}</h2>
+            <p>{goal?.goal_technique || 'General'} - {stats.percentage}% complete</p>
+          </div>
+          <button
+            type="button"
+            className="goal-picker-trigger"
+            onClick={() => setIsGoalPickerOpen(true)}
+          >
+            Change Goal
+          </button>
+        </div>
+      )}
+
+      {isGoalPickerOpen && (
+        <div
+          className="goal-picker-overlay"
+          role="presentation"
+          onClick={() => setIsGoalPickerOpen(false)}
+        >
+          <div
+            className="goal-picker-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="goal-picker-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="goal-picker-dialog-header">
+              <div>
+                <span className="goal-picker-label">Your Goals</span>
+                <h2 id="goal-picker-title">Choose progress to view</h2>
+              </div>
+              <button
+                type="button"
+                className="goal-picker-close"
+                aria-label="Close goal picker"
+                onClick={() => setIsGoalPickerOpen(false)}
+              >
+                X
+              </button>
+            </div>
+
+            <div className="goal-picker-card-list">
+              {goals.map((item) => {
+                const isSelected = String(item.id) === selectedGoalId;
+                const itemTotal = item.total_steps || 0;
+                const itemCompleted = item.completed_steps || 0;
+                const itemProgress = Math.round(item.progress_percentage || 0);
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`goal-picker-card${isSelected ? ' selected' : ''}`}
+                    onClick={() => handleGoalSelect(item.id)}
+                  >
+                    <div className="goal-picker-card-top">
+                      <h3>{item.goal_title || item.name || `Goal #${item.id}`}</h3>
+                      <span>{itemProgress}%</span>
+                    </div>
+                    <p>{item.goal_technique || 'General'}</p>
+                    <div className="goal-picker-card-progress">
+                      <div style={{ width: `${itemProgress}%` }}></div>
+                    </div>
+                    <div className="goal-picker-card-meta">
+                      <span>{itemCompleted}/{itemTotal} steps</span>
+                      <span>{item.goal_deadline ? formatDeadline(item.goal_deadline) : 'No deadline'}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Overdue notification (from /api/actions/check-overdue) */}
       {overdue && overdue.needs_revision && (
         <div className="overdue-banner" id="dashboard-overdue-banner">
@@ -302,12 +424,8 @@ export default function ProgressDashboard() {
       {/* Active goal banner */}
       {goal && (
         <div className="goal-banner" id="dashboard-goal-banner">
-          <div className="goal-banner-label">Active Goal</div>
+          <div className="goal-banner-label">Selected Goal</div>
           <h2 className="goal-banner-title">{goal.goal_title || goal.name}</h2>
-          
-          <div style={{ marginLeft: 'auto' }}>
-            <button className="btn" onClick={() => setReviseOpen(true)}>Revise Plan</button>
-          </div>
           
           {stats.deadline && (
             <div className="goal-banner-deadline">

@@ -3,7 +3,7 @@
 .main-dashboard-view {
   display: flex;
   flex-direction: column;
-  gap: 36px;
+  gap: 28px;
   animation: mainDashFadeIn 0.5s ease-out;
 }
 
@@ -12,236 +12,468 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-.dashboard-header {
-  margin-bottom: 8px;
+.dashboard-command-center {
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96)),
+    radial-gradient(circle at 18% 20%, rgba(14, 165, 233, 0.24), transparent 32%);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
+  color: #ffffff;
+  display: grid;
+  gap: 26px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  overflow: hidden;
+  padding: 30px;
+  position: relative;
+}
+
+.dashboard-command-center::after {
+  background: linear-gradient(90deg, #38bdf8, #22c55e, #facc15);
+  content: '';
+  height: 4px;
+  inset: auto 0 0 0;
+  position: absolute;
+}
+
+.dashboard-hero-copy {
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-kicker,
+.section-eyebrow,
+.panel-label {
+  color: #38bdf8;
+  display: inline-flex;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .welcome-message {
-  font-size: 2.2rem;
-  font-weight: 800;
-  color: var(--text-main);
-  letter-spacing: -0.8px;
-  margin: 0 0 10px 0;
-  line-height: 1.2;
+  color: #ffffff;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-weight: 900;
+  line-height: 1.04;
+  margin: 12px 0 14px 0;
+  max-width: 720px;
 }
 
-.highlight-text {
-  background: linear-gradient(135deg, #2563eb, #60a5fa);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.welcome-message span {
+  color: #93c5fd;
 }
 
 .dashboard-subtitle {
-  font-size: 1.05rem;
-  color: var(--text-muted);
+  color: #cbd5e1;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.6;
   margin: 0;
-  font-weight: 500;
+  max-width: 650px;
 }
 
-/* Summary Widgets using CSS Grid */
-.summary-widgets {
+.dashboard-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.dashboard-primary-action,
+.dashboard-secondary-action,
+.compact-link {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.9rem;
+  font-weight: 900;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 18px;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.dashboard-primary-action {
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.2);
+  color: #0f172a;
+  gap: 8px;
+}
+
+.dashboard-primary-action:hover,
+.dashboard-secondary-action:hover,
+.compact-link:hover {
+  transform: translateY(-2px);
+}
+
+.dashboard-secondary-action {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #e2e8f0;
+}
+
+.dashboard-progress-panel {
+  align-items: center;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  display: flex;
+  gap: 18px;
+  padding: 18px;
+  position: relative;
+  z-index: 1;
+}
+
+.progress-ring {
+  align-items: center;
+  background: conic-gradient(#22c55e var(--progress), rgba(255, 255, 255, 0.15) 0deg);
+  border-radius: 50%;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
+  flex: 0 0 124px;
+  height: 124px;
+  place-items: center;
+  width: 124px;
 }
 
-.widget-card {
-  background: var(--bg-card);
-  border-radius: 18px;
-  padding: 24px;
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+.progress-ring-inner {
+  align-items: center;
+  background: #0f172a;
+  border-radius: 50%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-height: 220px;
-  transition: all 0.25s ease;
+  height: 92px;
+  justify-content: center;
+  width: 92px;
 }
 
-.widget-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
-  border-color: rgba(37, 99, 235, 0.15);
-}
-
-.widget-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.widget-value-title {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: var(--text-main);
-  margin: 16px 0 10px 0;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.step-title-text {
-  color: #1e293b;
-  font-weight: 700;
-}
-
-.widget-desc {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin: 0 0 16px 0;
-  line-height: 1.4;
-}
-
-.widget-link {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--primary);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  margin-top: auto;
-  transition: color 0.2s;
-}
-
-.widget-link:hover {
-  color: var(--primary-hover);
-}
-
-.widget-link-btn {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: white;
-  background: var(--primary);
-  text-decoration: none;
-  padding: 8px 16px;
-  border-radius: 8px;
-  text-align: center;
-  margin-top: auto;
-  transition: background-color 0.2s;
-}
-
-.widget-link-btn:hover {
-  background: var(--primary-hover);
-}
-
-/* Progress Widget Custom Styles */
-.progress-value-container {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 16px 0 12px 0;
-}
-
-.progress-num {
-  font-size: 2.5rem;
-  font-weight: 900;
-  color: var(--text-main);
+.progress-ring-inner strong {
+  color: #ffffff;
+  font-size: 1.75rem;
+  font-weight: 950;
   line-height: 1;
 }
 
-.progress-sub {
-  font-size: 0.85rem;
-  color: var(--text-muted);
+.progress-ring-inner span {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+.progress-panel-copy {
+  min-width: 0;
+}
+
+.progress-panel-copy h2 {
+  color: #ffffff;
+  font-size: 1.08rem;
+  line-height: 1.35;
+  margin: 8px 0;
+}
+
+.progress-panel-copy p {
+  color: #cbd5e1;
+  font-size: 0.86rem;
   font-weight: 600;
+  line-height: 1.5;
+  margin: 0;
 }
 
-.widget-progress-bar-track {
-  height: 8px;
-  background: #f1f5f9;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 20px;
+.dashboard-insight-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 260px;
 }
 
-.widget-progress-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #2563eb, #60a5fa);
-  border-radius: 4px;
-  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+.focus-panel,
+.dashboard-metrics-strip,
+.shortcuts-list {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
 
-/* Navigation Shortcuts Grid */
-.dashboard-shortcuts-section {
-  margin-top: 12px;
+.focus-panel {
+  padding: 22px;
+}
+
+.section-heading-row {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.section-eyebrow {
+  color: #0891b2;
 }
 
 .section-title {
-  font-size: 1.4rem;
-  font-weight: 800;
   color: var(--text-main);
-  letter-spacing: -0.4px;
-  margin: 0 0 20px 0;
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin: 4px 0 0 0;
 }
 
-.shortcuts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 20px;
+.compact-link {
+  background: #eff6ff;
+  color: var(--primary);
+  min-height: 36px;
+  padding: 0 14px;
+  white-space: nowrap;
 }
 
-.shortcut-item-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.01);
-}
-
-.shortcut-item-card:hover {
-  transform: translateY(-2px);
+.next-step-block {
+  align-items: flex-start;
   background: #f8fafc;
-  border-color: #cbd5e1;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  display: flex;
+  gap: 16px;
+  padding: 18px;
 }
 
-.shortcut-item-card h4 {
-  font-size: 0.98rem;
-  font-weight: 700;
+.step-marker {
+  align-items: center;
+  background: #0f172a;
+  border-radius: 12px;
+  color: #ffffff;
+  display: inline-flex;
+  flex: 0 0 46px;
+  font-size: 0.9rem;
+  font-weight: 900;
+  height: 46px;
+  justify-content: center;
+}
+
+.next-step-block h3 {
   color: var(--text-main);
+  font-size: 1rem;
+  line-height: 1.4;
   margin: 0 0 8px 0;
 }
 
-.shortcut-item-card p {
-  font-size: 0.82rem;
+.next-step-block p {
   color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.55;
   margin: 0;
+}
+
+.dashboard-metrics-strip {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+  min-height: 86px;
+  padding: 16px 18px;
+}
+
+.metric-item + .metric-item {
+  border-top: 1px solid #e2e8f0;
+}
+
+.metric-label {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metric-item strong {
+  color: var(--text-main);
+  font-size: 1.1rem;
+  font-weight: 900;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-shortcuts-section {
+  margin-top: 2px;
+}
+
+.shortcuts-list {
+  display: grid;
+  overflow: hidden;
+}
+
+.shortcut-action-row {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 14px;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  min-height: 82px;
+  padding: 14px 18px;
+  text-align: left;
+  transition: background 0.2s ease, transform 0.2s ease;
+  width: 100%;
+}
+
+.shortcut-action-row:last-child {
+  border-bottom: 0;
+}
+
+.shortcut-action-row:hover {
+  background: #f8fafc;
+}
+
+.shortcut-icon {
+  align-items: center;
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  color: #0369a1;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 950;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.shortcut-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.shortcut-copy strong {
+  color: var(--text-main);
+  font-size: 0.96rem;
+  font-weight: 900;
+}
+
+.shortcut-copy span {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
   line-height: 1.4;
 }
 
-/* Loading & Error States */
+.shortcut-meta {
+  background: #f1f5f9;
+  border-radius: 999px;
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 900;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.dashboard-feedback-section {
+  min-width: 0;
+}
+
 .dashboard-loading {
+  align-items: center;
+  color: var(--text-muted);
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
   padding: 80px 20px;
-  color: var(--text-muted);
+}
+
+.dashboard-loading h3 {
+  margin-top: 20px;
 }
 
 .dashboard-error {
+  align-items: center;
   display: flex;
   justify-content: center;
-  align-items: center;
   padding: 60px 20px;
 }
 
 .error-card {
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: #991b1b;
   border-radius: 14px;
+  color: #991b1b;
+  max-width: 400px;
   padding: 24px;
   text-align: center;
-  max-width: 400px;
   width: 100%;
 }
 
 .error-card button {
   margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-command-center,
+  .dashboard-insight-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-metrics-strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .metric-item + .metric-item {
+    border-left: 1px solid #e2e8f0;
+    border-top: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .main-dashboard-view {
+    gap: 22px;
+  }
+
+  .dashboard-command-center {
+    border-radius: 20px;
+    padding: 22px;
+  }
+
+  .dashboard-progress-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-metrics-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-item + .metric-item {
+    border-left: 0;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .shortcut-action-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .shortcut-meta {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .next-step-block {
+    flex-direction: column;
+  }
 }

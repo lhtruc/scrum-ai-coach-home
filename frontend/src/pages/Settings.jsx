@@ -121,99 +121,108 @@ export default function Settings() {
         <p className="settings-subtitle">Manage your profile and security preferences.</p>
       </header>
 
-      {/* --- FORM 1: PROFILE --- */}
-      <form className="settings-form glass-card" onSubmit={handleSave}>
-        <h2 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--text-main)' }}>Profile Information</h2>
-        {success && <div className="settings-success-alert">Settings saved successfully!</div>}
-        {error && <div className="settings-error-alert">{error}</div>}
-        
-        <div className="settings-form-row">
-          <label htmlFor="pref-name">Name</label>
-          <input 
-            id="pref-name" 
-            className="form-input" 
-            type="text" 
-            value={name} 
-            onChange={(e) => setName(e.target.value)} 
-            required 
-          />
-        </div>
+      <section className="settings-card-grid">
+        <form className="settings-form glass-card" onSubmit={handleSave}>
+          <div className="settings-card-header">
+            <span className="settings-card-kicker">Account</span>
+            <h2>Profile Information</h2>
+          </div>
+          {success && <div className="settings-success-alert">Settings saved successfully!</div>}
+          {error && <div className="settings-error-alert">{error}</div>}
 
-        <div className="settings-form-row">
-          <label htmlFor="pref-email">Email</label>
-          <input 
-            id="pref-email" 
-            className="form-input" 
-            type="email" 
-            value={email} 
-            disabled 
-          />
-          <span className="settings-field-hint">Email address cannot be changed.</span>
-        </div>
+          <div className="settings-form-row">
+            <label htmlFor="pref-name">Name</label>
+            <input
+              id="pref-name"
+              className="form-input"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
 
-        <div className="settings-form-row">
-          <label htmlFor="pref-role">Selected Role</label>
-          <select 
-            id="pref-role" 
-            className="form-input" 
-            value={role} 
-            onChange={(e) => setRole(e.target.value)}
-          >
-            <option value="Employee">Employee</option>
-            <option value="Student">Student</option>
-          </select>
-          <span className="settings-field-hint">Your customized dashboard views will update based on this role.</span>
-        </div>
+          <div className="settings-form-row">
+            <label htmlFor="pref-email">Email</label>
+            <input
+              id="pref-email"
+              className="form-input"
+              type="email"
+              value={email}
+              disabled
+            />
+            <span className="settings-field-hint">Email address cannot be changed.</span>
+          </div>
 
-        <div style={{ marginTop: '12px' }}>
-          <button className="btn btn-primary" type="submit" disabled={isSaving}>
-            {isSaving ? 'Saving...' : 'Save Profile'}
-          </button>
-        </div>
-      </form>
+          <div className="settings-form-row">
+            <label htmlFor="pref-role">Selected Role</label>
+            <select
+              id="pref-role"
+              className="form-input"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              <option value="Employee">Employee</option>
+              <option value="Student">Student</option>
+            </select>
+            <span className="settings-field-hint">Your customized dashboard views will update based on this role.</span>
+          </div>
 
-      {/* --- FORM 2: SECURITY / PASSWORD --- */}
-      <form className="settings-form glass-card" onSubmit={handlePasswordUpdate}>
-        <h2 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--text-main)' }}>Security / Password</h2>
-        {pwdSuccess && <div className="settings-success-alert">Password updated successfully!</div>}
-        {pwdError && <div className="settings-error-alert">{pwdError}</div>}
+          <div className="settings-form-actions">
+            <button className="btn btn-primary" type="submit" disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save Profile'}
+            </button>
+          </div>
+        </form>
 
-        <div className="settings-form-row">
-          <label>Current Password</label>
-          <input
-            className="form-input"
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-          />
-        </div>
+        <form className="settings-form glass-card" onSubmit={handlePasswordUpdate}>
+          <div className="settings-card-header">
+            <span className="settings-card-kicker">Security</span>
+            <h2>Password</h2>
+          </div>
+          {pwdSuccess && <div className="settings-success-alert">Password updated successfully!</div>}
+          {pwdError && <div className="settings-error-alert">{pwdError}</div>}
 
-        <div className="settings-form-row">
-          <label>New Password</label>
-          <input
-            className="form-input"
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-          />
-        </div>
+          <div className="settings-form-row">
+            <label htmlFor="current-password">Current Password</label>
+            <input
+              id="current-password"
+              className="form-input"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+          </div>
 
-        <div className="settings-form-row">
-          <label>Confirm New Password</label>
-          <input
-            className="form-input"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-        </div>
+          <div className="settings-form-row">
+            <label htmlFor="new-password">New Password</label>
+            <input
+              id="new-password"
+              className="form-input"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </div>
 
-        <div style={{ marginTop: '12px' }}>
-          <button className="btn btn-primary" type="submit" disabled={isSavingPwd}>
-            {isSavingPwd ? 'Updating...' : 'Update Password'}
-          </button>
-        </div>
-      </form>
+          <div className="settings-form-row">
+            <label htmlFor="confirm-password">Confirm New Password</label>
+            <input
+              id="confirm-password"
+              className="form-input"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
+
+          <div className="settings-form-actions">
+            <button className="btn btn-primary" type="submit" disabled={isSavingPwd}>
+              {isSavingPwd ? 'Updating...' : 'Update Password'}
+            </button>
+          </div>
+        </form>
+      </section>
     </div>
   );
 }

@@ -4,6 +4,8 @@ import actionPlanApi from '../services/actionPlanApi';
 import './SkillAssessment.css';
 import './ActionPlan.css';
 
+const actionPlanGenerationRequests = new Map();
+
 function formatDeadline(dateStr) {
   if (!dateStr) return 'N/A';
   const date = new Date(dateStr);
@@ -141,7 +143,8 @@ export default function ActionPlan({
   const [needsRevision, setNeedsRevision] = useState(false);
   const [revisionLoading, setRevisionLoading] = useState(false);
   const [showRevisionModal, setShowRevisionModal] = useState(false);
-  const [revisedSteps, setRevisedSteps] = useState([]);
+  const [revisionOptions, setRevisionOptions] = useState([]);
+  const [selectedRevisionIndex, setSelectedRevisionIndex] = useState(0);
 
   const computeProgress = useCallback((stepList) => {
     const total = stepList.length;
@@ -174,7 +177,17 @@ export default function ActionPlan({
         feasibility: safeMeta.feasibility
       };
 
-      const data = await actionPlanApi.generateActionPlan(payload);
+      const generationKey = String(targetGoalId);
+      let generationRequest = actionPlanGenerationRequests.get(generationKey);
+
+      if (!generationRequest) {
+        generationRequest = actionPlanApi
+          .generateActionPlan(payload)
+          .finally(() => actionPlanGenerationRequests.delete(generationKey));
+        actionPlanGenerationRequests.set(generationKey, generationRequest);
+      }
+
+      const data = await generationRequest;
       const generatedSteps = data.steps || [];
 
       setGoalId(Number(targetGoalId));
@@ -279,6 +292,13 @@ export default function ActionPlan({
         },
         { autoGenerate: Boolean(routeState.autoGenerate) }
       );
+      actionPlanApi
+        .checkOverdue(initGoalId)
+        .then((data) => setNeedsRevision(Boolean(data?.needs_revision)))
+        .catch((err) => {
+          console.error('Failed to check overdue:', err);
+          setNeedsRevision(false);
+        });
       return;
     }
 
@@ -288,9 +308,7 @@ export default function ActionPlan({
     actionPlanApi
       .checkOverdue()
       .then((data) => {
-        if (data?.needs_revision) {
-          setNeedsRevision(true);
-        }
+        setNeedsRevision(Boolean(data?.needs_revision));
       })
       .catch((err) => {
         console.error('Failed to check overdue:', err);
@@ -316,6 +334,11 @@ export default function ActionPlan({
 
       setSteps(updatedSteps);
       computeProgress(updatedSteps);
+
+      if (goalId) {
+        const overdueInfo = await actionPlanApi.checkOverdue(goalId);
+        setNeedsRevision(Boolean(overdueInfo?.needs_revision));
+      }
     } catch (err) {
       console.error('Failed to update step status:', err);
       setFallbackMsg('Failed to update step. Please try again.');
@@ -349,12 +372,20 @@ export default function ActionPlan({
   const handleRevisePlan = async () => {
     try {
       setRevisionLoading(true);
-      const data = await actionPlanApi.revisePlan();
+      const data = await actionPlanApi.revisePlan({ goal_id: goalId });
 
       // Fix: Xử lý data trả về từ Backend có options (main branch) thay vì revised_steps đơn thuần
-      const newStepsToReview = data.options ? data.options[0].steps : (data.revised_steps || []);
-      
-      setRevisedSteps(newStepsToReview);
+      const options = Array.isArray(data.options) && data.options.length > 0
+        ? data.options
+        : [{
+            version: 'Version 1',
+            strategy: 'Adjusted plan',
+            description: 'AI suggested updated deadlines for the current plan.',
+            steps: data.revised_steps || []
+          }];
+
+      setRevisionOptions(options);
+      setSelectedRevisionIndex(0);
       setShowRevisionModal(true);
     } catch (err) {
       console.error('Failed to revise plan:', err);
@@ -366,11 +397,15 @@ export default function ActionPlan({
 
   // [Lấy từ nhánh: frontend-adaptive-action-plan] - Đã sửa API call name và cấu trúc payload
   const handleAcceptRevision = async () => {
+    const selectedOption = revisionOptions[selectedRevisionIndex];
+    const selectedSteps = selectedOption?.steps || [];
+
     try {
       await actionPlanApi.bulkUpdate({
         goal_id: goalId,
-        updates: revisedSteps,
-        version: "Version 1" 
+        updates: selectedSteps,
+        version: selectedOption?.version,
+        strategy: selectedOption?.strategy
       });
 
       setShowRevisionModal(false);
@@ -389,6 +424,10 @@ export default function ActionPlan({
   };
 
   const allDone = steps.length > 0 && steps.every((step) => step.is_completed);
+  const selectedRevisionOption = revisionOptions[selectedRevisionIndex];
+  const selectedRevisionSteps = selectedRevisionOption?.steps || [];
+  const selectedPendingSteps = selectedRevisionSteps.filter((step) => !step.is_completed);
+  const selectedCompletedSteps = selectedRevisionSteps.filter((step) => step.is_completed);
 
   if (view === 'LOADING') {
     return (
@@ -557,18 +596,9 @@ export default function ActionPlan({
         ))}
       </div>
 
-      <div className="bottom-action-bar" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div className="bottom-action-bar">
         <button
-          id="regenerate-btn"
           className="btn btn-primary"
-          onClick={() => generatePlan(goalId, goalInfo)}
-          disabled={generating}
-        >
-          Regenerate Action Plan
-        </button>
-        <button
-          className="btn"
-          style={{ background: '#f1f5f9', color: '#475569' }}
           onClick={() => navigate('/progress')}
         >
           Go to Progress
@@ -581,16 +611,56 @@ export default function ActionPlan({
           <div className="revision-modal">
             <h2>Adjusted Action Plan</h2>
             <p className="revision-modal-sub">
-              AI suggested updated deadlines based on your current progress.
+              Choose the revision strategy that best fits your current workload.
             </p>
-            
+
+            <div className="revision-option-grid">
+              {revisionOptions.map((option, index) => {
+                const optionSteps = option.steps || [];
+                const pendingCount = optionSteps.filter((step) => !step.is_completed).length;
+                const completedCount = optionSteps.filter((step) => step.is_completed).length;
+                const isSelected = selectedRevisionIndex === index;
+
+                return (
+                  <button
+                    key={option.version || index}
+                    type="button"
+                    className={`revision-option-card${isSelected ? ' selected' : ''}`}
+                    onClick={() => setSelectedRevisionIndex(index)}
+                  >
+                    <span className="revision-option-version">{option.version || `Version ${index + 1}`}</span>
+                    <strong>{option.strategy || 'Adjusted plan'}</strong>
+                    <span>{option.description || 'AI suggested updated deadlines.'}</span>
+                    <div className="revision-option-meta">
+                      <span>{pendingCount} pending</span>
+                      <span>{completedCount} kept</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="revision-preview-summary">
+              <div>
+                <span>Selected</span>
+                <strong>{selectedRevisionOption?.version || 'Version 1'} - {selectedRevisionOption?.strategy || 'Adjusted plan'}</strong>
+              </div>
+              <span>{selectedPendingSteps.length} step updates</span>
+            </div>
+
+            {selectedCompletedSteps.length > 0 && (
+              <div className="revision-kept-note">
+                {selectedCompletedSteps.length} completed step{selectedCompletedSteps.length > 1 ? 's' : ''} will be kept.
+              </div>
+            )}
+
             <div className="revision-list">
-              {revisedSteps.map((step) => (
+              {selectedPendingSteps.map((step) => (
                 <div key={step.id} className="revision-item">
                   <h4>{step.title}</h4>
                   <div className="revision-dates">
                     <span className="old-date">
-                      Old: {formatDeadline(step.old_deadline)}
+                      Old: {formatDeadline(step.old_deadline || step.deadline_old)}
                     </span>
                     <span className="new-date">
                       New: {formatDeadline(step.deadline)}
@@ -610,8 +680,9 @@ export default function ActionPlan({
               <button
                 className="btn btn-primary"
                 onClick={handleAcceptRevision}
+                disabled={!selectedRevisionOption}
               >
-                Accept Adjusted Plan
+                Apply {selectedRevisionOption?.version || 'Selected Version'}
               </button>
             </div>
           </div>

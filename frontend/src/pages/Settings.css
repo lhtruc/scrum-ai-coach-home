@@ -3,7 +3,7 @@
 .settings-page-view {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 24px;
   animation: settingsFadeIn 0.5s ease-out;
 }
 
@@ -13,14 +13,14 @@
 }
 
 .settings-header {
-  margin-bottom: 8px;
+  max-width: 720px;
 }
 
 .settings-title {
-  font-size: 2.2rem;
-  font-weight: 800;
+  font-size: 2.25rem;
+  font-weight: 900;
   color: var(--text-main);
-  letter-spacing: -0.8px;
+  letter-spacing: 0;
   margin: 0 0 10px 0;
 }
 
@@ -31,13 +31,46 @@
   font-weight: 500;
 }
 
+.settings-card-grid {
+  align-items: stretch;
+  display: grid;
+  gap: 22px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .settings-form {
-  padding: 32px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 18px;
+  box-shadow: var(--shadow-soft);
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 600px;
+  min-height: 100%;
+  padding: 28px;
   width: 100%;
+}
+
+.settings-card-header {
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 16px;
+}
+
+.settings-card-kicker {
+  color: var(--accent-cyan);
+  display: inline-flex;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-card-header h2 {
+  color: var(--text-main);
+  font-size: 1.18rem;
+  font-weight: 900;
+  line-height: 1.25;
+  margin: 5px 0 0;
 }
 
 .settings-form-row {
@@ -58,6 +91,38 @@
   font-weight: 500;
 }
 
+.settings-form .form-input {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  color: var(--text-main);
+  min-height: 44px;
+  outline: none;
+  padding: 0 14px;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.settings-form .form-input:focus {
+  background: #ffffff;
+  border-color: rgba(37, 99, 235, 0.72);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.settings-form .form-input:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.settings-form-actions {
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.settings-form-actions .btn {
+  min-height: 44px;
+  width: 100%;
+}
+
 .settings-success-alert {
   background-color: #dcfce7;
   border: 1px solid #bbf7d0;
@@ -66,6 +131,23 @@
   border-radius: 8px;
   font-size: 0.88rem;
   font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  .settings-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .settings-title {
+    font-size: 1.9rem;
+  }
+
+  .settings-form {
+    border-radius: 16px;
+    padding: 22px;
+  }
 }
 
 .settings-error-alert {

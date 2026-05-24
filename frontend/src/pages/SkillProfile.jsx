@@ -163,9 +163,9 @@ function SkillProfile() {
         >
           <h3>No skill profile yet</h3>
 
-          <p>You have not completed any skill assessment yet.</p>
+          <p>You have not completed any goal yet.</p>
 
-          <p>Please take the assessment first to view your skill profile.</p>
+          <p>Please start and complete a new goal.</p>
 
           <button
             onClick={() => navigate("/skills?section=goal")}
@@ -180,7 +180,7 @@ function SkillProfile() {
               boxShadow: "0 8px 20px rgba(79, 70, 229, 0.25)",
             }}
           >
-            Take Assessment
+            Start a new goal
           </button>
         </div>
       ) : (
@@ -222,7 +222,7 @@ function SkillProfile() {
               boxShadow: "0 8px 20px rgba(79, 70, 229, 0.25)",
             }}
           >
-            Retake Assessment
+            New Goal
           </button>
         </>
       )}

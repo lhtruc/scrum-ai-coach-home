@@ -6,7 +6,6 @@ import Feedback from './Feedback';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
-// [Lấy từ nhánh: main] - Đảm bảo lấy token mới nhất và an toàn
 async function getAuthHeaders() {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -38,7 +37,6 @@ export default function Dashboard() {
 
     const fetchSummary = async () => {
       try {
-        // [Lấy từ nhánh: main] - Không gửi user_id lên URL nữa để tránh lỗi bảo mật IDOR
         const headers = await getAuthHeaders();
 
         const response = await fetch(`${API_BASE_URL}/dashboard/summary`, {
@@ -84,7 +82,7 @@ export default function Dashboard() {
     return (
       <div className="dashboard-loading">
         <div className="loader-ring"></div>
-        <h3 style={{ marginTop: '20px' }}>Loading Main Dashboard...</h3>
+        <h3>Loading Main Dashboard...</h3>
       </div>
     );
   }
@@ -102,112 +100,160 @@ export default function Dashboard() {
     );
   }
 
-  // [Lấy từ nhánh: main] - Có fallback data an toàn hơn
-  const { user_name, user_role, current_goal, progress_percentage, next_action_step } = data || {};
+  const {
+    user_name,
+    user_role,
+    current_goal,
+    progress_percentage,
+    next_action_step,
+    next_action_step_number
+  } = data || {};
+  const progress = Math.min(Math.max(Number(progress_percentage) || 0, 0), 100);
+  const displayRole = user_role || selectedRole;
+  const hasGoal = Boolean(current_goal);
+  const nextActionStepMarker = next_action_step_number
+    ? String(next_action_step_number).padStart(2, '0')
+    : '--';
+  const progressStatus = progress >= 75 ? 'Strong momentum' : progress >= 35 ? 'In progress' : 'Needs first win';
+  const focusCopy = hasGoal
+    ? 'Keep the next action small enough to finish, visible enough to review, and connected to your current Scrum goal.'
+    : 'Complete your skill profile first so the coach can suggest a relevant learning sprint.';
+  const quickActions = [
+    {
+      title: 'Skill Profile',
+      desc: 'Update levels and review coach analysis.',
+      path: '/skills',
+      icon: 'SP',
+      meta: hasGoal ? 'Review' : 'Start here'
+    },
+    {
+      title: 'Goal Setting',
+      desc: 'Choose a recommended path or refine your goal.',
+      path: '/skills',
+      icon: 'GS',
+      meta: hasGoal ? 'Tune goal' : 'Create goal'
+    },
+    {
+      title: 'Action Plan',
+      desc: 'Work through SMART steps generated for your goal.',
+      path: '/action-plan',
+      icon: 'AP',
+      meta: hasGoal ? 'Next step' : 'Locked'
+    },
+    {
+      title: 'Progress Dashboard',
+      desc: 'Inspect completion trends and step checklist.',
+      path: '/progress',
+      icon: 'PD',
+      meta: `${progress}% done`
+    },
+    {
+      title: 'Settings',
+      desc: 'Manage account settings and preferences.',
+      path: '/settings',
+      icon: 'ST',
+      meta: 'Account'
+    }
+  ];
 
   return (
     <div className="main-dashboard-view">
-      {/* Welcome Header */}
-      <header className="dashboard-header">
-        <h1 className="welcome-message">
-          Welcome, <span className="highlight-text">{user_name || 'User'}</span> ({user_role || selectedRole})
-        </h1>
-        <p className="dashboard-subtitle">
-          Here is your custom learning progress summary for today.
-        </p>
-      </header>
-
-      {/* 3 Distinct UI Summary Cards/Widgets */}
-      <section className="summary-widgets">
-        {/* Widget 1: Current Goal */}
-        <div className="widget-card goal-widget">
-          <div>
-            <span className="widget-label">Current Goal</span>
-            <h3 className="widget-value-title">
-              {current_goal || 'No Active Goal'}
-            </h3>
-            <p className="widget-desc">
-              {current_goal 
-                ? 'Your currently activated Scrum learning sprint.' 
-                : 'Setup a skill rating to receive custom goals from AI Coach.'
-              }
-            </p>
+      <section className="dashboard-command-center">
+        <div className="dashboard-hero-copy">
+          {/* <span className="dashboard-kicker">{displayRole} learning cockpit</span> */}
+          <h1 className="welcome-message">
+            Welcome back, <span>{user_name || 'User'}</span>
+          </h1>
+          <p className="dashboard-subtitle">
+            <b>John C. Maxwell:</b> “Small disciplines repeated with consistency every day lead to great achievements.” 
+          </p>
+          <div className="dashboard-hero-actions">
+            <Link to={hasGoal ? '/action-plan' : '/skills'} className="dashboard-primary-action">
+              {hasGoal ? 'Continue action plan' : 'Create first goal'} <span>{'▶'}</span>
+            </Link>
+            <Link to="/progress" className="dashboard-secondary-action">View progress</Link>
           </div>
-          {current_goal ? (
-            <Link to="/skills" className="widget-link">Manage Goal</Link>
-          ) : (
-            <Link to="/skills" className="widget-link-btn">Create Goal</Link>
-          )}
         </div>
 
-        {/* Widget 2: Progress % */}
-        <div className="widget-card progress-widget">
-          <div>
-            <span className="widget-label">Progress %</span>
-            <div className="progress-value-container">
-              <span className="progress-num">{progress_percentage || 0}%</span>
-              <span className="progress-sub">Completed</span>
-            </div>
-            <div className="widget-progress-bar-track">
-              <div 
-                className="widget-progress-bar-fill" 
-                style={{ width: `${progress_percentage || 0}%` }}
-              />
+        <div className="dashboard-progress-panel" aria-label="Learning progress">
+          <div className="progress-ring" style={{ '--progress': `${progress * 3.6}deg` }}>
+            <div className="progress-ring-inner">
+              <strong>{progress}%</strong>
+              <span>complete</span>
             </div>
           </div>
-          <Link to="/progress" className="widget-link">Track Progress</Link>
-        </div>
-
-        {/* Widget 3: Next Action Step */}
-        <div className="widget-card next-step-widget">
-          <div>
-            <span className="widget-label">Next Action Step</span>
-            <h3 className="widget-value-title step-title-text">
-              {next_action_step || 'None'}
-            </h3>
-            <p className="widget-desc">
-              {current_goal 
-                ? 'Finish this SMART step to level up your capability.' 
-                : 'Goal action plan will suggest next steps.'
-              }
+          <div className="progress-panel-copy">
+            <span className="panel-label">{progressStatus}</span>
+            <h2>{hasGoal ? current_goal : 'No active goal yet'}</h2>
+            <p>
+              {hasGoal
+                ? 'Your selected goal is active. Keep the next step moving before adding more work.'
+                : 'Start with a skill rating to unlock a focused goal and action plan.'}
             </p>
           </div>
-          {/* [Lấy từ nhánh: adaptive] - Nút này nên dẫn tới action-plan thay vì progress */}
-          {current_goal && (
-            <Link to="/action-plan" className="widget-link">Open Action Plan</Link>
-          )}
         </div>
       </section>
 
-      {/* Navigation & Shortcuts Section */}
+      <section className="dashboard-insight-grid">
+        <article className="focus-panel">
+          <div className="section-heading-row">
+            <div>
+              <span className="section-eyebrow">Focus now</span>
+              <h2 className="section-title">Next action step</h2>
+            </div>
+            {hasGoal && <Link to="/action-plan" className="compact-link">Open plan</Link>}
+          </div>
+          <div className="next-step-block">
+            <span className="step-marker">{nextActionStepMarker}</span>
+            <div>
+              <h3>{next_action_step || 'No step selected yet'}</h3>
+              <p>{focusCopy}</p>
+            </div>
+          </div>
+        </article>
+
+        <aside className="dashboard-metrics-strip">
+          <div className="metric-item">
+            <span className="metric-label">Goal</span>
+            <strong>{hasGoal ? 'Active' : 'Missing'}</strong>
+          </div>
+          <div className="metric-item">
+            <span className="metric-label">Progress</span>
+            <strong>{progress}%</strong>
+          </div>
+          <div className="metric-item">
+            <span className="metric-label">Role</span>
+            <strong>{displayRole}</strong>
+          </div>
+        </aside>
+      </section>
+
       <section className="dashboard-shortcuts-section">
-        <h2 className="section-title">Quick Actions</h2>
-        <div className="shortcuts-grid">
-          {/* [Lấy từ nhánh: adaptive] - Các đường link được fix lại để không bị trang 404 Not Found */}
-          <div className="shortcut-item-card" onClick={() => navigate('/skills')}>
-            <h4>Skill Profile</h4>
-            <p>Update skill rating levels and view coach analysis.</p>
+        <div className="section-heading-row">
+          <div>
+            <span className="section-eyebrow">Workspace</span>
+            <h2 className="section-title">Quick actions</h2>
           </div>
-          <div className="shortcut-item-card" onClick={() => navigate('/skills')}>
-            <h4>Goal Setting</h4>
-            <p>Select recommended or customize your learning roadmaps.</p>
-          </div>
-          <div className="shortcut-item-card" onClick={() => navigate('/action-plan')}>
-            <h4>Action Plan</h4>
-            <p>Manage and regenerate dynamic AI-generated SMART steps.</p>
-          </div>
-          <div className="shortcut-item-card" onClick={() => navigate('/progress')}>
-            <h4>Progress Dashboard</h4>
-            <p>Detailed statistics and step checklist toggles.</p>
-          </div>
-          <div className="shortcut-item-card" onClick={() => navigate('/settings')}>
-            <h4>Settings</h4>
-            <p>Manage your account settings and preferences.</p>
-          </div>
+        </div>
+        <div className="shortcuts-list">
+          {quickActions.map((action) => (
+            <button
+              key={action.title}
+              type="button"
+              className="shortcut-action-row"
+              onClick={() => navigate(action.path)}
+            >
+              <span className="shortcut-icon">{action.icon}</span>
+              <span className="shortcut-copy">
+                <strong>{action.title}</strong>
+                <span>{action.desc}</span>
+              </span>
+              <span className="shortcut-meta">{action.meta}</span>
+            </button>
+          ))}
         </div>
       </section>
 
-      {/* Weekly Feedback (inline) */}
       <section className="dashboard-feedback-section">
         <h2 className="section-title">Weekly Feedback</h2>
         <Feedback />

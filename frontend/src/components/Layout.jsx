@@ -1,6 +1,5 @@
 import { useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
-import Sidebar from './Sidebar';
 import './Layout.css';
 
 export default function Layout({ children }) {
@@ -14,7 +13,6 @@ export default function Layout({ children }) {
 
   return (
     <div className="app-container">
-      <Sidebar />
       <div className="app-main-content">
         <Navbar />
         <main className="page-content">

@@ -62,7 +62,11 @@ export default function Navbar() {
   };
 
   // [Adaptive Branch]: Lấy phần trước @ của email làm tên hiển thị nếu không có display_name
-  const displayName = profile?.display_name || profile?.email?.split("@")[0] || "You";
+  const displayName =
+    profile?.display_name?.trim() ||
+    profile?.name?.trim() ||
+    profile?.email?.split("@")[0] ||
+    "You";
   const userRole = profile?.role || "";
   const avatarInitial = displayName.charAt(0).toUpperCase();
 
@@ -82,6 +86,10 @@ export default function Navbar() {
               <nav className="nav-links" aria-label="Primary navigation">
                 <NavLink to="/dashboard" className="nav-link">
                   Dashboard
+                </NavLink>
+
+                <NavLink to="/skills?section=goal" className="nav-link">
+                  Goal
                 </NavLink>
 
                 <NavLink to="/progress" className="nav-link">

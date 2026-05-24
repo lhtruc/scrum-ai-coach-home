@@ -31,6 +31,9 @@
 }
 
 .feedback-actions {
+  align-items: center;
+  display: flex;
+  gap: 12px;
   margin-left: auto;
 }
 
@@ -101,13 +104,39 @@
   font-weight: 800;
 }
 
+.feedback-point-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.feedback-point-list li {
+  color: #334155;
+  line-height: 1.55;
+  padding-left: 18px;
+  position: relative;
+}
+
+.feedback-point-list li::before {
+  background: #2563eb;
+  border-radius: 999px;
+  content: '';
+  height: 6px;
+  left: 0;
+  position: absolute;
+  top: 0.72em;
+  width: 6px;
+}
+
 .btn-secondary {
   border: 1px solid #e2e8f0;
   background: white;
   color: #0f172a;
   padding: 10px 16px;
   border-radius: 12px;
-  margin-right: 10px;
   cursor: pointer;
   font-weight: 700;
 }
@@ -121,19 +150,20 @@
   position: fixed;
   inset: 0;
   background: rgba(2,6,23,0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
+  padding: 24px;
   z-index: 60;
 }
 
 .history-modal {
-  width: min(920px, 94%);
-  max-height: 86vh;
+  box-sizing: border-box;
+  width: min(760px, calc(100vw - 48px));
+  max-height: min(680px, calc(100vh - 48px));
   overflow: auto;
   background: white;
-  border-radius: 16px;
-  padding: 18px 20px;
+  border-radius: 18px;
+  padding: 24px 26px;
   box-shadow: 0 30px 80px rgba(2,6,23,0.4);
 }
 
@@ -159,7 +189,7 @@
 .history-item-header { font-weight: 800; margin-bottom: 8px; }
 .history-item-section { margin-top: 8px; }
 .history-item-body { margin-top: 6px; color: #334155; }
-.history-loading, .empty-history { padding: 24px; text-align: center; color: #64748b; }
+.history-loading, .empty-history { padding: 42px 24px; text-align: center; color: #64748b; }
 /* compact widget (removed) */
 
 @media (max-width: 900px) {
@@ -173,10 +203,23 @@
   }
 
   .feedback-actions {
+    display: grid;
+    gap: 10px;
     width: 100%;
   }
 
-  .btn-primary {
+  .feedback-actions .btn-primary,
+  .feedback-actions .btn-secondary {
     width: 100%;
+  }
+
+  .history-modal-overlay {
+    padding: 16px;
+  }
+
+  .history-modal {
+    width: min(100%, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    padding: 20px;
   }
 }

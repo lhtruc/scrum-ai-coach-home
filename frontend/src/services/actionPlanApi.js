@@ -20,6 +20,22 @@ async function getAuthHeaders() {
 }
 
 const actionPlanApi = {
+  getGoals: async () => {
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/goals`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to fetch goals');
+    }
+
+    return await response.json();
+  },
+
   generateActionPlan: async (payload) => {
     const headers = await getAuthHeaders();
 
@@ -91,9 +107,13 @@ const actionPlanApi = {
   },
 
   // GET /api/actions/check-overdue — check if any actions are overdue
-  checkOverdue: async () => {
+  checkOverdue: async (goalId) => {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/actions/check-overdue`, {
+    const url = goalId
+      ? `${API_BASE_URL}/actions/check-overdue?goal_id=${encodeURIComponent(goalId)}`
+      : `${API_BASE_URL}/actions/check-overdue`;
+
+    const response = await fetch(url, {
       method: 'GET',
       headers
     });
@@ -102,11 +122,12 @@ const actionPlanApi = {
   },
 
   // POST /api/actions/revise — request a revision
-  revisePlan: async () => {
+  revisePlan: async (payload = {}) => {
     const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/actions/revise`, {
       method: 'POST',
-      headers
+      headers,
+      body: JSON.stringify(payload)
     });
     if (!response.ok) throw new Error('Failed to request plan revision');
     return await response.json();

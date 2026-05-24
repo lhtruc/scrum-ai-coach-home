@@ -14,6 +14,7 @@ export default function Feedback() {
   const token = localStorage.getItem('access_token');
 
   const isEmptyWeek = feedback?.is_empty_week === true;
+  const canGenerate = feedback?.can_generate !== false;
 
   const strengths = Array.isArray(feedback?.strengths)
     ? feedback.strengths
@@ -27,7 +28,9 @@ export default function Feedback() {
       ? feedback.areas_to_improve
       : feedback?.areas
         ? [String(feedback.areas)]
-        : [];
+        : feedback?.improvements
+          ? [String(feedback.improvements)]
+          : [];
 
   const normalizeFeedback = (raw) => {
     const data = raw?.feedback || raw;
@@ -35,6 +38,7 @@ export default function Feedback() {
     if (data?.is_empty_week) {
       return {
         is_empty_week: true,
+        can_generate: raw?.can_generate ?? data?.can_generate ?? true,
         progress_summary: null,
         strengths: [],
         areas: []
@@ -43,9 +47,11 @@ export default function Feedback() {
 
     return {
       is_empty_week: false,
+      can_generate: raw?.can_generate ?? data?.can_generate ?? true,
       progress_summary:
         data?.progress_summary ||
         data?.progressSummary ||
+        data?.summary ||
         '',
 
       strengths: Array.isArray(data?.strengths)
@@ -60,7 +66,9 @@ export default function Feedback() {
           ? data.areas_to_improve
           : data?.areas
             ? [String(data.areas)]
-            : []
+            : data?.improvements
+              ? [String(data.improvements)]
+              : []
     };
   };
 
@@ -172,7 +180,7 @@ export default function Feedback() {
             View History
           </button>
 
-          {!isEmptyWeek && (
+          {canGenerate && (
             <button
               className="btn-primary"
               onClick={generateFeedback}
@@ -188,13 +196,17 @@ export default function Feedback() {
 
       {isEmptyWeek ? (
         <div className="empty-week-message">
-          No feedback yet this week. Keep completing your action steps and come back later!
+          {canGenerate
+            ? 'No feedback generated for today yet. Generate it once when you are ready.'
+            : 'Today feedback was generated, but there were no completed actions to summarize yet.'}
         </div>
       ) : (
         <div className="feedback-grid">
           <FeedbackCard title="Progress Summary">
             {feedback?.progress_summary ? (
-              <div>{String(feedback.progress_summary)}</div>
+              <ul className="feedback-point-list">
+                <li>{String(feedback.progress_summary)}</li>
+              </ul>
             ) : (
               <div className="empty">No progress summary yet.</div>
             )}
@@ -202,7 +214,7 @@ export default function Feedback() {
 
           <FeedbackCard title="Strengths">
             {strengths.length ? (
-              <ul>
+              <ul className="feedback-point-list">
                 {strengths.map((s, i) => (
                   <li key={i}>{s}</li>
                 ))}
@@ -214,7 +226,7 @@ export default function Feedback() {
 
           <FeedbackCard title="Areas to Improve">
             {areas.length ? (
-              <ul>
+              <ul className="feedback-point-list">
                 {areas.map((a, i) => (
                   <li key={i}>{a}</li>
                 ))}
@@ -258,7 +270,7 @@ export default function Feedback() {
                     <div className="history-item-section">
                       <strong>Progress Summary</strong>
                       <div className="history-item-body">
-                        {report.progress_summary || 'No summary'}
+                        {report.progress_summary || report.summary || 'No summary'}
                       </div>
                     </div>
 
@@ -276,7 +288,7 @@ export default function Feedback() {
                       <div className="history-item-body">
                         {Array.isArray(report.areas)
                           ? report.areas.join(', ')
-                          : report.areas || report.areas_to_improve || '—'}
+                          : report.areas || report.areas_to_improve || report.improvements || '—'}
                       </div>
                     </div>
                   </div>

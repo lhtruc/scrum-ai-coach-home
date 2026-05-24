@@ -1,7 +1,16 @@
+import supabase from "./supabaseClient";
+
 const API_BASE_URL = "http://127.0.0.1:8000/api";
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("jwt_token");
+const getAuthHeaders = async () => {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token || localStorage.getItem("access_token");
+
+  if (!token) {
+    throw new Error("No access token found. Please log in again.");
+  }
+
+  localStorage.setItem("access_token", token);
 
   return {
     "Content-Type": "application/json",
@@ -12,7 +21,7 @@ const getAuthHeaders = () => {
 const settingsApi = {
   getProfile: async () => {
     const response = await fetch(`${API_BASE_URL}/users/profile`, {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
     });
 
     if (!response.ok) throw new Error("Failed to fetch profile");
@@ -23,7 +32,7 @@ const settingsApi = {
   updateProfile: async (payload) => {
     const response = await fetch(`${API_BASE_URL}/users/profile`, {
       method: "PUT",
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify(payload),
     });
 
@@ -35,7 +44,7 @@ const settingsApi = {
   updatePassword: async (payload) => {
     const response = await fetch(`${API_BASE_URL}/auth/password`, {
       method: "PUT",
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify(payload),
     });
 
@@ -50,7 +59,7 @@ const settingsApi = {
   logout: async () => {
     const response = await fetch(`${API_BASE_URL}/auth/logout`, {
       method: "POST",
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
     });
 
     if (!response.ok) throw new Error("Failed to logout");

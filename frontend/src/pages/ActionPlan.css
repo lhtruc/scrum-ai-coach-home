@@ -441,21 +441,19 @@
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.45);
-
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
+  display: grid;
+  place-items: center;
+  padding: 24px;
   z-index: 999;
 }
 
 .revision-modal {
-  width: 92%;
-  max-width: 620px;
-
+  box-sizing: border-box;
+  width: min(760px, calc(100vw - 48px));
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: auto;
   background: white;
   border-radius: 24px;
-
   padding: 28px;
 }
 
@@ -466,6 +464,116 @@
 .revision-modal-sub {
   color: #64748b;
   margin-bottom: 20px;
+}
+
+.revision-option-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.revision-option-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 14px;
+  text-align: left;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.revision-option-card:hover,
+.revision-option-card.selected {
+  border-color: rgba(37, 99, 235, 0.55);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.12);
+  transform: translateY(-1px);
+}
+
+.revision-option-card.selected {
+  background: #eff6ff;
+}
+
+.revision-option-version {
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.revision-option-card strong {
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+.revision-option-card > span:not(.revision-option-version) {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.revision-option-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.revision-option-meta span {
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 4px 8px;
+}
+
+.revision-preview-summary {
+  align-items: center;
+  background: #0f172a;
+  border-radius: 14px;
+  color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+}
+
+.revision-preview-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.revision-preview-summary span {
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.revision-preview-summary strong {
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.revision-kept-note {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  color: #166534;
+  font-size: 0.84rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+  padding: 10px 12px;
 }
 
 .revision-list {
@@ -509,5 +617,20 @@
   gap: 12px;
 
   margin-top: 24px;
+}
+
+@media (max-width: 640px) {
+  .revision-option-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .revision-preview-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .revision-actions {
+    flex-direction: column;
+  }
 }
 /* re-use: .btn, .btn-primary, .bottom-action-bar from SkillAssessment.css */
