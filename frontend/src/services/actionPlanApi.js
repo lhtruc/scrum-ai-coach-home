@@ -2,6 +2,7 @@ import supabase from './supabaseClient';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
+// [Merge: Lấy logic async từ longfix1 để đảm bảo token luôn mới nhất]
 async function getAuthHeaders() {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -69,10 +70,15 @@ const actionPlanApi = {
     return await response.json();
   },
 
-  getActiveGoalStats: async () => {
+  // GET /api/goals/active/stats — fetch active goal + stats
+  // [Merge: Sử dụng logic async headers]
+  getActiveGoalStats: async (userId) => {
     const headers = await getAuthHeaders();
+    const url = userId
+      ? `${API_BASE_URL}/goals/active/stats?user_id=${userId}`
+      : `${API_BASE_URL}/goals/active/stats`;
 
-    const response = await fetch(`${API_BASE_URL}/goals/active/stats`, {
+    const response = await fetch(url, {
       method: 'GET',
       headers
     });
@@ -81,35 +87,37 @@ const actionPlanApi = {
       const errorText = await response.text();
       throw new Error(errorText || 'Failed to fetch active goal stats');
     }
-
     return await response.json();
   },
 
   // GET /api/actions/check-overdue — check if any actions are overdue
   checkOverdue: async () => {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/actions/check-overdue`, {
       method: 'GET',
-      headers: getAuthHeaders()
+      headers
     });
     if (!response.ok) throw new Error('Failed to check overdue actions');
     return await response.json();
   },
 
-  // POST /api/actions/revise — request a revision of the action plan
+  // POST /api/actions/revise — request a revision
   revisePlan: async () => {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/actions/revise`, {
       method: 'POST',
-      headers: getAuthHeaders()
+      headers
     });
     if (!response.ok) throw new Error('Failed to request plan revision');
     return await response.json();
-  }
-,
-  // PUT /api/actions/bulk-update — apply a set of updates for actions
+  },
+
+  // PUT /api/actions/bulk-update — apply a set of updates
   bulkUpdate: async (payload) => {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/actions/bulk-update`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers,
       body: JSON.stringify(payload)
     });
     if (!response.ok) throw new Error('Failed to bulk update actions');

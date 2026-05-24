@@ -13,46 +13,49 @@ const getAuthHeaders = async () => {
   localStorage.setItem('access_token', token);
 
   return {
-    Authorization: `Bearer ${token}`
+    Authorization: `Bearer ${token}`,
   };
 };
 
 const getJsonHeaders = async ({ auth = false } = {}) => ({
   'Content-Type': 'application/json',
-  ...(auth ? await getAuthHeaders() : {})
+  ...(auth ? await getAuthHeaders() : {}),
 });
 
 const assessmentApi = {
   getSkills: async () => {
     const response = await fetch(`${API_BASE_URL}/skills`);
 
-    if (!response.ok)
+    if (!response.ok) {
       throw new Error('Network response was not ok');
+    }
 
     return await response.json();
   },
-  
+
   getCurrentUser: async () => {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       method: 'GET',
-      headers: await getAuthHeaders() // GET không cần Content-Type nên dùng getAuthHeaders là đúng
+      headers: await getAuthHeaders(),
     });
 
-    if (!response.ok) throw new Error('Failed to get current user');
+    if (!response.ok) {
+      throw new Error('Failed to get current user');
+    }
 
     return await response.json();
   },
-  
+
   submitAssessment: async (payload) => {
     const response = await fetch(`${API_BASE_URL}/skills/assess`, {
       method: 'POST',
-      // headers: getAuthHeaders(), // -> Code cũ của frontend-view-skill-profile
-      headers: await getJsonHeaders({ auth: true }), // -> Code mới của main
-      body: JSON.stringify(payload)
+      headers: await getJsonHeaders({ auth: true }),
+      body: JSON.stringify(payload),
     });
 
-    if (!response.ok)
+    if (!response.ok) {
       throw new Error('Failed to submit assessment');
+    }
 
     return await response.json();
   },
@@ -60,13 +63,13 @@ const assessmentApi = {
   suggestGoals: async (payload) => {
     const response = await fetch(`${API_BASE_URL}/goals/suggest`, {
       method: 'POST',
-      // headers: getAuthHeaders(), // -> Code cũ bị thiếu Content-Type
       headers: await getJsonHeaders({ auth: true }),
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
-    if (!response.ok)
+    if (!response.ok) {
       throw new Error('Failed to get suggestions');
+    }
 
     return await response.json();
   },
@@ -74,13 +77,13 @@ const assessmentApi = {
   refineCustomGoal: async (payload) => {
     const response = await fetch(`${API_BASE_URL}/goals/custom/refine`, {
       method: 'POST',
-      // headers: getAuthHeaders(), // -> Code cũ bị thiếu Content-Type
       headers: await getJsonHeaders({ auth: true }),
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
-    if (!response.ok)
+    if (!response.ok) {
       throw new Error('Failed to refine custom goal');
+    }
 
     return await response.json();
   },
@@ -88,13 +91,13 @@ const assessmentApi = {
   confirmGoal: async (payload) => {
     const response = await fetch(`${API_BASE_URL}/goals/confirm`, {
       method: 'POST',
-      // headers: getAuthHeaders(), // -> Code cũ bị thiếu Content-Type
       headers: await getJsonHeaders({ auth: true }),
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
-    if (!response.ok)
+    if (!response.ok) {
       throw new Error('Failed to confirm and save goal');
+    }
 
     return await response.json();
   },
@@ -102,8 +105,9 @@ const assessmentApi = {
   getGoalActionSteps: async (goalId) => {
     const response = await fetch(`${API_BASE_URL}/goals/${goalId}/actions`, {
       method: 'GET',
-      headers: await getAuthHeaders()
+      headers: await getAuthHeaders(),
     });
+
     if (!response.ok) {
       throw new Error('Failed to fetch goal action steps');
     }
@@ -114,11 +118,10 @@ const assessmentApi = {
   updateActionStepStatus: async (stepId, isCompleted) => {
     const response = await fetch(`${API_BASE_URL}/actions/${stepId}/status`, {
       method: 'PUT',
-      // headers: { 'Content-Type': 'application/json' }, // -> Code cũ 
-      headers: await getJsonHeaders({ auth: true }), // Đổi luôn qua getJsonHeaders cho đồng bộ
+      headers: await getJsonHeaders({ auth: true }),
       body: JSON.stringify({
-        is_completed: isCompleted
-      })
+        is_completed: isCompleted,
+      }),
     });
 
     if (!response.ok) {
@@ -126,7 +129,7 @@ const assessmentApi = {
     }
 
     return await response.json();
-  }
+  },
 };
 
 export default assessmentApi;

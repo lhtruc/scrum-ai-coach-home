@@ -410,4 +410,104 @@
   cursor: not-allowed;
 }
 
+/* ================= REVISION BANNER ================= */
+
+.revision-banner {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.revision-banner h3 {
+  margin: 0 0 6px 0;
+  color: #92400e;
+}
+
+.revision-banner p {
+  margin: 0;
+  color: #78350f;
+}
+
+/* ================= REVISION MODAL ================= */
+
+.revision-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  z-index: 999;
+}
+
+.revision-modal {
+  width: 92%;
+  max-width: 620px;
+
+  background: white;
+  border-radius: 24px;
+
+  padding: 28px;
+}
+
+.revision-modal h2 {
+  margin-top: 0;
+}
+
+.revision-modal-sub {
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+.revision-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.revision-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.revision-item h4 {
+  margin: 0 0 10px 0;
+}
+
+.revision-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.old-date {
+  color: #dc2626;
+  text-decoration: line-through;
+}
+
+.new-date {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.revision-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+
+  margin-top: 24px;
+}
 /* re-use: .btn, .btn-primary, .bottom-action-bar from SkillAssessment.css */

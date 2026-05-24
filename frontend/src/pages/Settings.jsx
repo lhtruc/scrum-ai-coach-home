@@ -1,36 +1,10 @@
 import { useState, useEffect } from 'react';
-// import { useNavigate } from "react-router-dom"; // -> Không dùng nữa do đã bỏ nút Logout ở trang này
 import authApi from '../services/authApi';
-import settingsApi from '../services/settingsApi'; // -> Giữ lại để gọi API đổi mật khẩu từ nhánh frontend-settings-profile-2
+import settingsApi from '../services/settingsApi'; 
 import './Settings.css';
 
-// ==========================================
-// [CODE CŨ BỊ LOẠI BỎ TỪ: frontend-settings-profile-2]
-// Được comment lại bằng // theo yêu cầu, không xóa đi.
-// ==========================================
-// const navigate = useNavigate();
-// const [displayName, setDisplayName] = useState("");
-// const [loading, setLoading] = useState(true);
-// 
-// const fetchProfile = async () => { ... } // Bỏ vì nhánh main lấy trực tiếp từ localStorage cho nhanh
-// 
-// const handleProfileUpdate = async (e) => { ... } // Bỏ vì nhánh main đã có handleSave xịn hơn
-// 
-// const handleLogout = async () => {
-//   try {
-//     await settingsApi.logout();
-//   } catch (error) {
-//     console.error(error);
-//   }
-//   localStorage.removeItem("jwt_token");
-//   localStorage.removeItem("user_profile");
-//   window.dispatchEvent(new Event("auth-changed"));
-//   navigate("/login");
-// };
-// ==========================================
-
 export default function Settings() {
-  // --- STATE TỪ NHÁNH MAIN (Cho Profile) ---
+  // --- STATE CHO PROFILE ---
   const [name, setName] = useState('User');
   const [role, setRole] = useState('Employee');
   const [email, setEmail] = useState('you@company.com');
@@ -38,7 +12,7 @@ export default function Settings() {
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // --- STATE TỪ NHÁNH CŨ (Cho Đổi Mật Khẩu) ---
+  // --- STATE CHO ĐỔI MẬT KHẨU ---
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -47,7 +21,7 @@ export default function Settings() {
   const [isSavingPwd, setIsSavingPwd] = useState(false);
 
   useEffect(() => {
-    // Logic của nhánh main: Đọc thẳng từ localStorage để hiển thị ngay, không cần loading
+    // Đọc thẳng từ localStorage để hiển thị ngay, không cần loading state
     const userProfile = JSON.parse(localStorage.getItem('user_profile') || 'null');
     if (userProfile) {
       setName(userProfile.display_name || userProfile.name || 'User');
@@ -62,7 +36,7 @@ export default function Settings() {
     }
   }, []);
 
-  // [Hàm của nhánh main] - Cập nhật Profile
+  // Xử lý Cập nhật Profile
   const handleSave = async (e) => {
     e.preventDefault();
     setError('');
@@ -99,7 +73,7 @@ export default function Settings() {
     }
   };
 
-  // [Hàm của nhánh frontend-settings-profile-2] - Tích hợp UI lỗi/thành công của main
+  // Xử lý Đổi Mật Khẩu
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
     setPwdError('');
@@ -140,7 +114,6 @@ export default function Settings() {
     }
   };
 
-  // Dùng UI của nhánh main cho toàn bộ file
   return (
     <div className="settings-page-view">
       <header className="settings-header">
@@ -199,7 +172,7 @@ export default function Settings() {
         </div>
       </form>
 
-      {/* --- FORM 2: SECURITY / PASSWORD (Mang từ nhánh cũ qua) --- */}
+      {/* --- FORM 2: SECURITY / PASSWORD --- */}
       <form className="settings-form glass-card" onSubmit={handlePasswordUpdate}>
         <h2 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--text-main)' }}>Security / Password</h2>
         {pwdSuccess && <div className="settings-success-alert">Password updated successfully!</div>}
@@ -241,13 +214,6 @@ export default function Settings() {
           </button>
         </div>
       </form>
-
-      {/* 
-      // Nút Logout cũ bị loại bỏ vì đã tích hợp trên Navbar
-      // <div className="logout-section">
-      //   <button className="logout-btn" onClick={handleLogout}>Log Out</button>
-      // </div> 
-      */}
     </div>
   );
 }

@@ -1,215 +1,71 @@
-// <<<<<<< frontend-settings-profile-2
-// import "./Navbar.css";
-// import { useEffect, useState } from "react";
-// import {
-//   Link,
-//   useLocation,
-//   useNavigate
-// } from "react-router-dom";
-// =======
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import './Navbar.css';
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import "./Navbar.css";
 
-// ==========================================
-// [Accept từ nhánh: main]
-// Đưa constants và hàm xử lý ra ngoài component để tối ưu hiệu suất
-// ==========================================
-const HIDDEN_PATHS = ['/welcome', '/login', '/register'];
+const HIDDEN_PATHS = ["/welcome", "/login", "/register"];
 
 const getProfileFromStorage = () => {
   try {
-    return JSON.parse(localStorage.getItem('user_profile')) || null;
+    return JSON.parse(localStorage.getItem("user_profile")) || null;
   } catch {
     return null;
   }
 };
-// >>>>>>> main
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
 
-// <<<<<<< frontend-settings-profile-2
-//   const [token, setToken] = useState(null);
-//   const [profile, setProfile] = useState(() => {
-//     try {
-//       return JSON.parse(localStorage.getItem("user_profile") || "null");
-//     } catch {
-//       return null;
-//     }
-//   });
-// =======
-// >>>>>>> main
-
-  // [Accept từ nhánh: main] - Sử dụng access_token thay vì jwt_token
-  // const [token, setToken] = useState(localStorage.getItem('jwt_token')); // -> Bị xóa (từ lịch sử cũ của main)
-  const [token, setToken] = useState(localStorage.getItem('access_token'));
+  // [KẾT HỢP]: Kiểm tra cả access_token và jwt_token để tương thích ngược với hệ thống cũ
+  const [token, setToken] = useState(
+    localStorage.getItem("access_token") || localStorage.getItem("jwt_token")
+  );
   const [profile, setProfile] = useState(getProfileFromStorage);
 
-// <<<<<<< frontend-settings-profile-2
-//   useEffect(() => {
-//     const syncAuth = () => {
-//       setToken(localStorage.getItem("jwt_token"));
-//
-//       try {
-//         setProfile(JSON.parse(localStorage.getItem("user_profile") || "null"));
-//       } catch {
-//         setProfile(null);
-//       }
-//     };
-//
-//     syncAuth();
-//
-//     window.addEventListener("storage", syncAuth);
-//     window.addEventListener("auth-changed", syncAuth);
-//
-//     return () => {
-//       window.removeEventListener("storage", syncAuth);
-//       window.removeEventListener("auth-changed", syncAuth);
-//     };
-//   }, []);
-//
-//   const hiddenPaths = ["/welcome", "/login", "/register"];
-//
-//   if (hiddenPaths.includes(location.pathname)) {
-//     return null;
-//   }
-//
-//   const handleLogout = () => {
-//     localStorage.removeItem("jwt_token");
-//     localStorage.removeItem("user_profile");
-//
-//     window.dispatchEvent(new Event("auth-changed"));
-// =======
   useEffect(() => {
-    // [Accept từ nhánh: main] - Xử lý logic event payload xịn hơn
     const syncAuthState = (e) => {
-      if (e?.type === 'auth-changed') {
-        setProfile(e.detail || null);
+      // [Adaptive Branch]: Cập nhật profile ngay lập tức nếu có event detail truyền qua
+      if (e?.type === "auth-changed" && e.detail) {
+        setProfile(e.detail);
       } else {
         setProfile(getProfileFromStorage());
       }
-      setToken(localStorage.getItem('access_token'));
+
+      setToken(
+        localStorage.getItem("access_token") || localStorage.getItem("jwt_token")
+      );
     };
 
-    window.addEventListener('storage', syncAuthState);
-    window.addEventListener('auth-changed', syncAuthState);
+    window.addEventListener("storage", syncAuthState);
+    window.addEventListener("auth-changed", syncAuthState);
 
     return () => {
-      window.removeEventListener('storage', syncAuthState);
-      window.removeEventListener('auth-changed', syncAuthState);
+      window.removeEventListener("storage", syncAuthState);
+      window.removeEventListener("auth-changed", syncAuthState);
     };
   }, []);
 
-  // [Accept từ nhánh: main] - Rút gọn điều kiện if
   if (HIDDEN_PATHS.includes(location.pathname)) return null;
 
   const handleLogout = () => {
-    // [KẾT HỢP CẢ 2] - Xóa toàn bộ token thừa để không bị lỗi đồng bộ
-    localStorage.removeItem('access_token'); 
-    localStorage.removeItem('jwt_token');
-    localStorage.removeItem('user_profile');
+    // Xóa toàn bộ dữ liệu session
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("jwt_token");
+    localStorage.removeItem("user_profile");
 
-    window.dispatchEvent(new Event('storage'));
-// >>>>>>> main
+    window.dispatchEvent(new Event("storage"));
 
     setToken(null);
     setProfile(null);
 
-// <<<<<<< frontend-settings-profile-2
-//     navigate("/login");
-// =======
-    // [Accept từ nhánh: main] - Dùng replace: true để xóa history sau khi logout
-    navigate('/login', { replace: true });
-// >>>>>>> main
+    navigate("/login", { replace: true });
   };
 
-  // [Accept từ nhánh: main] - Xử lý hiển thị thông tin User (DisplayName + Avatar)
-  const userEmail = profile?.email || '';
-  const displayName = profile?.display_name || 'You';
-  const userRole = profile?.role || '';
-  
+  // [Adaptive Branch]: Lấy phần trước @ của email làm tên hiển thị nếu không có display_name
+  const displayName = profile?.display_name || profile?.email?.split("@")[0] || "You";
+  const userRole = profile?.role || "";
   const avatarInitial = displayName.charAt(0).toUpperCase();
 
-  // [Accept từ nhánh: main] - Cấu trúc giao diện mới
-// <<<<<<< frontend-settings-profile-2
-//   return (
-//     <nav className="navbar">
-//       <div className="nav-container">
-//         <div className="nav-brand">
-//           <span className="logo-icon">⚡</span>
-//
-//           <Link
-//             to="/"
-//             style={{
-//               color: "inherit",
-//               textDecoration: "none",
-//             }}
-//           >
-//             AI Coach
-//           </Link>
-//         </div>
-//
-//         <div className="nav-profile">
-//           {token ? (
-//             <>
-//               <Link
-//                 to="/skill-profile"
-//                 style={{
-//                   textDecoration: "none",
-//                   marginRight: "12px",
-//                   fontWeight: "600",
-//                   color: "#4f46e5",
-//                 }}
-//               >
-//                 My Profile
-//               </Link>
-//
-//               <Link
-//                 to="/settings"
-//                 style={{
-//                   textDecoration: "none",
-//                   marginRight: "12px",
-//                   fontWeight: "600",
-//                   color: "#4f46e5",
-//                 }}
-//               >
-//                 Settings
-//               </Link>
-//
-//               <span className="user-name">
-//                 {profile?.display_name || profile?.email || "You"}
-//               </span>
-//
-//               {profile?.role && (
-//                 <span style={{ marginLeft: "4px", color: "#666" }}>
-//                   ({profile.role})
-//                 </span>
-//               )}
-//
-//               <button
-//                 className="btn"
-//                 onClick={handleLogout}
-//                 style={{ marginLeft: "8px" }}
-//               >
-//                 Logout
-//               </button>
-//             </>
-//           ) : (
-//             <Link
-//               to="/login"
-//               className="btn"
-//               style={{ textDecoration: "none" }}
-//             >
-//               Login
-//             </Link>
-//           )}
-//         </div>
-//       </div>
-//     </nav>
-//   );
-// =======
   return (
     <div className="navbar-wrapper">
       <header className="navbar">
@@ -227,22 +83,20 @@ export default function Navbar() {
                 <NavLink to="/dashboard" className="nav-link">
                   Dashboard
                 </NavLink>
+
                 <NavLink to="/progress" className="nav-link">
                   Progress
                 </NavLink>
 
-                {/* ============================================== */}
-                {/* [Accept từ nhánh: frontend-view-skill-profile] */}
-                {/* Bổ sung Link đến My Profile và chuyển thành NavLink */}
-                {/* ============================================== */}
                 <NavLink to="/skill-profile" className="nav-link">
                   My Profile
                 </NavLink>
 
-                {/* ============================================== */}
-                {/* [LẤY TỪ NHÁNH: frontend-settings-profile-2]    */}
-                {/* Thêm link Settings, đồng thời chuyển qua NavLink*/}
-                {/* ============================================== */}
+                {/* [Adaptive Branch]: Thêm route Feedback */}
+                <NavLink to="/feedback" className="nav-link">
+                  Feedback
+                </NavLink>
+
                 <NavLink to="/settings" className="nav-link">
                   Settings
                 </NavLink>
@@ -275,5 +129,4 @@ export default function Navbar() {
       </header>
     </div>
   );
-// >>>>>>> main
 }

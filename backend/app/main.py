@@ -535,12 +535,10 @@ def generate_action_plan(data: ActionGenerateRequest, current_user=Depends(verif
     validate_goal_exists(data.goal_id)
 
     steps = generate_action_steps_by_ai(data)
-
     saved_steps = save_action_steps_to_supabase(
         goal_id=data.goal_id,
         steps=steps
     )
-
     return {
         "message": "SMART action plan generated and saved successfully",
         "user": account,
@@ -577,7 +575,6 @@ def get_active_goal_dashboard_stats(current_user=Depends(verify_token)):
     user_id = account["user_id"]
 
     result = get_active_goal_stats(user_id)
-
     return {
         "message": "Active goal statistics fetched successfully",
         "user": account,
@@ -974,7 +971,10 @@ def revise_action_plan(current_user=Depends(verify_token)):
 
     goals = goal_resp.data or []
     if not goals:
-        return {"message": "No active goal found for user", "revised_steps": []}
+        return {
+            "message": "No active goal found for user",
+            "revised_steps": []
+        }
 
     goal_id = goals[0]["id"]
     steps_resp = (
@@ -1101,17 +1101,8 @@ async def bulk_update_actions(
         "updated_steps": updated_steps
     }
 
-    return {
-        "message": "Dashboard summary fetched successfully",
-        "user": result["user"],
-        "current_goal": result["current_goal"],
-        "progress": result["progress"],
-        "next_pending_action_step": result["next_pending_action_step"]
-    }
-
 @app.post("/api/auth/logout")
 def logout(current_user=Depends(verify_token)):
     return {
         "message": "Logout successful. Please clear token on client side."
     }
-

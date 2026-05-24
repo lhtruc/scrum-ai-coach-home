@@ -31,6 +31,8 @@ export default function SkillAssessment() {
   const [view, setView] = useState('LIST');
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedLevel, setSelectedLevel] = useState(null);
+
+  // [Lấy từ nhánh: main] - State quản lý Goal đang active
   const [goalSectionStatus, setGoalSectionStatus] = useState('LOADING'); // LOADING | FOUND | EMPTY
   const [activeGoalSummary, setActiveGoalSummary] = useState(null);
 
@@ -48,6 +50,7 @@ export default function SkillAssessment() {
       .catch((err) => console.error('Error loading skills:', err));
   }, []);
 
+  // [Lấy từ nhánh: main] - Logic check xem user đã có goal nào chưa
   useEffect(() => {
     if (section !== 'goal') {
       return;
@@ -150,6 +153,7 @@ export default function SkillAssessment() {
     return <SkillProfile />;
   }
 
+  // [Lấy từ nhánh: main] - Hiển thị màn hình Loading Goal
   if (goalSectionStatus === 'LOADING' && view === 'LIST') {
     return (
       <div className="mobile-container">
@@ -162,6 +166,7 @@ export default function SkillAssessment() {
     );
   }
 
+  // [Lấy từ nhánh: main] - Hiển thị Banner nếu user đã có Goal
   if (goalSectionStatus === 'FOUND' && view === 'LIST' && activeGoalSummary) {
     const progressPercentage = activeGoalSummary.totalSteps === 0
       ? 0
@@ -263,6 +268,7 @@ export default function SkillAssessment() {
         userName={currentUserName}
         skillName={selectedCourse.name}
         ratingLevel={selectedLevel}
+        onResetFlow={handleReselect}
       />
     );
   }
@@ -287,7 +293,9 @@ export default function SkillAssessment() {
         <div className="mobile-container">
           <div className="glass-card text-center">
             <h3>Oops, data lost!</h3>
-            <button className="btn btn-primary" onClick={handleReselect}>Start Over</button>
+            <button className="btn btn-primary" onClick={handleReselect}>
+              Start Over
+            </button>
           </div>
         </div>
       );
@@ -296,15 +304,19 @@ export default function SkillAssessment() {
     return (
       <div className="mobile-container slide-left">
         {renderProgress(100)}
+
         <div className="header-text">
           <h1 className="title">Review Goal</h1>
-          <p className="subtitle">Confirm your skill and level before submitting.</p>
+          <p className="subtitle">
+            Confirm your skill and level before submitting.
+          </p>
         </div>
 
         <div className="glass-card" style={{ marginBottom: '20px' }}>
           <h4 style={{ margin: '0 0 10px 0' }}>Selected Skill</h4>
           <p style={{ fontWeight: '600', color: 'var(--primary)' }}>{selectedCourse.name}</p>
           <hr style={{ border: '0', borderTop: '1px solid #eee', margin: '15px 0' }} />
+          
           <h4 style={{ margin: '0 0 10px 0' }}>Selected Level</h4>
           <div className="level-card selected" style={{ pointerEvents: 'none' }}>
             <div className="level-badge">{levelData.score}</div>
@@ -315,9 +327,21 @@ export default function SkillAssessment() {
           </div>
         </div>
 
-        <div className="bottom-action-bar" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <button className="btn btn-primary" onClick={handleSubmitToBackend}>Confirm & Create Goal</button>
-          <button className="btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={handleReselect}>Reselect</button>
+        <div
+          className="bottom-action-bar"
+          style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+        >
+          <button className="btn btn-primary" onClick={handleSubmitToBackend}>
+            Confirm & Create Goal
+          </button>
+
+          <button
+            className="btn"
+            style={{ background: '#f1f5f9', color: '#475569' }}
+            onClick={handleReselect}
+          >
+            Reselect
+          </button>
         </div>
       </div>
     );
@@ -327,12 +351,21 @@ export default function SkillAssessment() {
     return (
       <div className="mobile-container slide-left">
         {renderProgress(60)}
-        <button className="btn-icon-back" onClick={() => setView('LIST')}>← Back</button>
+
+        <button className="btn-icon-back" onClick={() => setView('LIST')}>
+          ← Back
+        </button>
 
         <div className="course-hero">
           <div className="course-hero-img-wrapper">
-            <img src={selectedCourse.image} alt={selectedCourse.name} className="course-hero-img" onError={(e) => { e.target.style.display = 'none'; }} />
+            <img 
+              src={selectedCourse.image} 
+              alt={selectedCourse.name} 
+              className="course-hero-img" 
+              onError={(e) => { e.target.style.display = 'none'; }} 
+            />
           </div>
+
           <h2 className="hero-title">{selectedCourse.name}</h2>
           <p className="hero-subtitle">Determine your starting point</p>
         </div>
@@ -354,7 +387,13 @@ export default function SkillAssessment() {
         </div>
 
         <div className="bottom-action-bar">
-          <button className="btn btn-primary" onClick={() => setView('REVIEW')} disabled={!selectedLevel}>Continue</button>
+          <button
+            className="btn btn-primary"
+            onClick={() => setView('REVIEW')}
+            disabled={!selectedLevel}
+          >
+            Continue
+          </button>
         </div>
       </div>
     );
@@ -363,9 +402,12 @@ export default function SkillAssessment() {
   return (
     <div className="mobile-container fade-in">
       {renderProgress(20)}
+
       <div className="header-text">
         <h1 className="title">Explore Skills</h1>
-        <p className="subtitle">Select a topic to personalize your learning experience.</p>
+        <p className="subtitle">
+          Select a topic to personalize your learning experience.
+        </p>
       </div>
 
       <div className="course-grid">
@@ -379,9 +421,16 @@ export default function SkillAssessment() {
             }}
           >
             <div className="course-img-wrapper">
-              <img src={course.image} alt={course.name} className="course-img" onError={(e) => { e.target.style.display = 'none'; }} />
+              <img 
+                src={course.image} 
+                alt={course.name} 
+                className="course-img" 
+                onError={(e) => { e.target.style.display = 'none'; }} 
+              />
             </div>
-            <div className="course-content"><h3>{course.name}</h3></div>
+            <div className="course-content">
+              <h3>{course.name}</h3>
+            </div>
           </div>
         ))}
       </div>

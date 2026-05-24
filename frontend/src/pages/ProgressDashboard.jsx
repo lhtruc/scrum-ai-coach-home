@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import actionPlanApi from '../services/actionPlanApi';
+// [Lấy từ nhánh: main] - Import Modal chuyên dụng để xử lý 2 options revise
 import ReviseModal from '../components/ReviseModal';
 import './SkillAssessment.css';
 import './ActionPlan.css';
@@ -116,6 +117,8 @@ export default function ProgressDashboard() {
   const [errorMsg, setErrorMsg] = useState(null);
   const [overdue, setOverdue] = useState(null);
   const [reviseLoading, setReviseLoading] = useState(false);
+  
+  // [Lấy từ nhánh: main] - Quản lý trạng thái mở Modal
   const [reviseOpen, setReviseOpen] = useState(false);
 
   // Compute stats from current step list (for optimistic updates)
@@ -159,11 +162,7 @@ export default function ProgressDashboard() {
     })();
   }, [computeStats]);
 
-  const handleRevisePlan = async () => {
-    // Open modal using current goal + progress as payload
-    setReviseOpen(true);
-  };
-
+  // [Lấy từ nhánh: main] - Khởi tạo payload chuẩn xác để gửi vào Modal
   const buildRevisePayload = () => {
     return {
       goal_id: goal?.id,
@@ -176,8 +175,8 @@ export default function ProgressDashboard() {
     };
   };
 
+  // [Lấy từ nhánh: main] - Xử lý lưu kết quả trả về từ Modal
   const handleSaveRevision = async (option) => {
-    // option is expected to include `steps` array describing updates for non-completed steps
     if (!goal) return;
     setReviseLoading(true);
     try {
@@ -187,12 +186,13 @@ export default function ProgressDashboard() {
 
       await actionPlanApi.bulkUpdate(payload);
 
-      // refresh active goal stats
+      // refresh active goal stats after update
       const userProfile = JSON.parse(localStorage.getItem('user_profile') || 'null');
       const userId = userProfile?.id || null;
       const data = await actionPlanApi.getActiveGoalStats(userId);
       const fetchedSteps = data.steps || [];
       const deadline = data.statistics?.goal_deadline || null;
+      
       setGoal(data.active_goal || null);
       setSteps(fetchedSteps);
       computeStats(fetchedSteps, deadline);
@@ -263,7 +263,6 @@ export default function ProgressDashboard() {
   }
 
   // ──────── VIEW: READY ────────
-  // Days remaining label with edge cases
   const daysLabel =
     stats.daysRemaining === null ? 'N/A' :
     stats.daysRemaining < 0     ? 'Overdue' :
@@ -305,9 +304,11 @@ export default function ProgressDashboard() {
         <div className="goal-banner" id="dashboard-goal-banner">
           <div className="goal-banner-label">Active Goal</div>
           <h2 className="goal-banner-title">{goal.goal_title || goal.name}</h2>
+          
           <div style={{ marginLeft: 'auto' }}>
             <button className="btn" onClick={() => setReviseOpen(true)}>Revise Plan</button>
           </div>
+          
           {stats.deadline && (
             <div className="goal-banner-deadline">
               Deadline: {formatDeadline(stats.deadline)}
@@ -410,6 +411,7 @@ export default function ProgressDashboard() {
         </button>
       </div>
 
+      {/* [Lấy từ nhánh: main] - Tích hợp ReviseModal xịn xò */}
       <ReviseModal
         isOpen={reviseOpen}
         onClose={() => setReviseOpen(false)}

@@ -10,30 +10,20 @@ import RegisterPage from "./pages/RegisterPage";
 import Onboarding from "./pages/Onboarding";
 
 import SkillAssessment from "./pages/SkillAssessment";
+import SkillProfile from "./pages/SkillProfile";
 import ActionPlan from "./pages/ActionPlan";
 import ActionProgress from "./pages/ActionProgress";
 
 import Dashboard from "./pages/Dashboard";
 import ProgressDashboard from "./pages/ProgressDashboard";
+import Feedback from "./pages/Feedback";
 import Settings from "./pages/Settings";
 
-// ==========================================
-// GIẢI QUYẾT MERGE CONFLICT (ACCEPT BOTH)
-// ==========================================
-
-// [Accept từ nhánh: frontend-view-skill-profile]
-// import RequireAuth from "./components/RequireAuth"; // -> Dòng này bị xóa (comment lại) do đã được import ở dòng 4 bên trên.
-import SkillProfile from "./pages/SkillProfile";       // -> Giữ lại để render route /skill-profile
-
-// [Accept từ nhánh: main]
-import Feedback from "./pages/Feedback";               // -> Giữ lại để render route /feedback
-
-function HomeRedirect() {                              // -> Giữ lại hàm này làm component cho route "/"
+function HomeRedirect() {
+  // Đã chuẩn hóa: Chỉ sử dụng access_token theo thiết kế mới
   const token = localStorage.getItem("access_token");
   return <Navigate to={token ? "/dashboard" : "/welcome"} replace />;
 }
-
-// ==========================================
 
 export default function App() {
   return (
@@ -48,10 +38,7 @@ export default function App() {
           <Route path="/onboarding" element={<Onboarding />} />
 
           {/* Protected Routes */}
-          <Route
-            path="/"
-            element={<HomeRedirect />}
-          />
+          <Route path="/" element={<HomeRedirect />} />
 
           <Route
             path="/skills"
@@ -60,6 +47,15 @@ export default function App() {
                 <RequireRole>
                   <SkillAssessment />
                 </RequireRole>
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/skill-profile"
+            element={
+              <RequireAuth>
+                <SkillProfile />
               </RequireAuth>
             }
           />
@@ -130,23 +126,6 @@ export default function App() {
             }
           />
 
-          <Route
-            path="/skill-profile"
-            element={
-              <RequireAuth>
-                <SkillProfile />
-              </RequireAuth>
-            }
-          />
-
-          <Route
-            path="/settings"
-            element={
-              <RequireAuth>
-                <Settings />
-              </RequireAuth>
-            }
-          />
         </Routes>
       </Layout>
     </BrowserRouter>
