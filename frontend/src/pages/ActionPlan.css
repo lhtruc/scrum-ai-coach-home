@@ -72,6 +72,12 @@
   margin: 0 0 14px 0;
 }
 
+.goal-banner-deadline {
+  font-size: 0.78rem;
+  opacity: 0.75;
+  margin-top: 10px;
+}
+
 .goal-banner-stats {
   display: flex;
   gap: 20px;

@@ -1,12 +1,12 @@
-import "./Navbar.css";
-import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import "./Navbar.css";
 
 const HIDDEN_PATHS = ["/welcome", "/login", "/register"];
 
 const getProfileFromStorage = () => {
   try {
-    return JSON.parse(localStorage.getItem("user_profile") || "null");
+    return JSON.parse(localStorage.getItem("user_profile")) || null;
   } catch {
     return null;
   }
@@ -16,6 +16,7 @@ export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // [KẾT HỢP]: Kiểm tra cả access_token và jwt_token để tương thích ngược với hệ thống cũ
   const [token, setToken] = useState(
     localStorage.getItem("access_token") || localStorage.getItem("jwt_token")
   );
@@ -23,6 +24,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const syncAuthState = (e) => {
+      // [Adaptive Branch]: Cập nhật profile ngay lập tức nếu có event detail truyền qua
       if (e?.type === "auth-changed" && e.detail) {
         setProfile(e.detail);
       } else {
@@ -46,6 +48,7 @@ export default function Navbar() {
   if (HIDDEN_PATHS.includes(location.pathname)) return null;
 
   const handleLogout = () => {
+    // Xóa toàn bộ dữ liệu session
     localStorage.removeItem("access_token");
     localStorage.removeItem("jwt_token");
     localStorage.removeItem("user_profile");
@@ -58,9 +61,8 @@ export default function Navbar() {
     navigate("/login", { replace: true });
   };
 
-  const displayName =
-    profile?.display_name || profile?.email?.split("@")[0] || "You";
-
+  // [Adaptive Branch]: Lấy phần trước @ của email làm tên hiển thị nếu không có display_name
+  const displayName = profile?.display_name || profile?.email?.split("@")[0] || "You";
   const userRole = profile?.role || "";
   const avatarInitial = displayName.charAt(0).toUpperCase();
 
@@ -68,11 +70,13 @@ export default function Navbar() {
     <div className="navbar-wrapper">
       <header className="navbar">
         <div className="nav-container">
+          {/* Logo */}
           <Link to="/" className="nav-brand">
             <span className="logo-icon">AI</span>
             <span className="logo-text">Coach</span>
           </Link>
 
+          {/* Right Section */}
           <div className="nav-right">
             {token && (
               <nav className="nav-links" aria-label="Primary navigation">
@@ -88,6 +92,7 @@ export default function Navbar() {
                   My Profile
                 </NavLink>
 
+                {/* [Adaptive Branch]: Thêm route Feedback */}
                 <NavLink to="/feedback" className="nav-link">
                   Feedback
                 </NavLink>
@@ -105,14 +110,10 @@ export default function Navbar() {
                     <span className="user-name" title={displayName}>
                       {displayName}
                     </span>
-
                     {userRole && <span className="user-role">{userRole}</span>}
                   </div>
-
                   <div className="avatar">{avatarInitial}</div>
-
                   <div className="nav-divider"></div>
-
                   <button className="nav-btn btn-logout" onClick={handleLogout}>
                     Logout
                   </button>

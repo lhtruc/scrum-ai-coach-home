@@ -101,45 +101,30 @@ def get_account_context_from_supabase(user_id: Optional[str], fallback_name: Opt
     if not user_id:
         return default_context
 
-    try:
-        response = (
-            supabase
-            .table("accounts")
-            .select("*")
-            .eq("user_id", user_id)
-            .limit(1)
-            .execute()
-        )
+    lookup_columns = ["id", "auth_uid"]
 
-        if response.data:
-            account = response.data[0]
-            return {
-                "user_id": user_id,
-                "name": account.get("name") or fallback_name or "User",
-                "role": account.get("role") or "Student"
-            }
-    except Exception:
-        pass
+    for column in lookup_columns:
+        try:
+            response = (
+                supabase
+                .table("accounts")
+                .select("id, auth_uid, email, role, display_name")
+                .eq(column, user_id)
+                .limit(1)
+                .execute()
+            )
 
-    try:
-        response = (
-            supabase
-            .table("accounts")
-            .select("*")
-            .eq("auth_uid", user_id)
-            .limit(1)
-            .execute()
-        )
+            if response.data:
+                account = response.data[0]
 
-        if response.data:
-            account = response.data[0]
-            return {
-                "user_id": user_id,
-                "name": account.get("name") or fallback_name or "User",
-                "role": account.get("role") or "Student"
-            }
-    except Exception:
-        pass
+                return {
+                    "user_id": account.get("id"),
+                    "auth_uid": account.get("auth_uid"),
+                    "name": account.get("display_name") or account.get("email") or fallback_name or "User",
+                    "role": account.get("role") or "Student"
+                }
+        except Exception:
+            pass
 
     return default_context
 
@@ -297,13 +282,13 @@ Do not include explanations outside JSON.
 JSON format:
 [
   {{
-    "title": "Milestone 1: ...",
+    "title": "Clear action plan title without numbering or the word milestone",
     "description": "...",
     "metric": "...",
     "deadline": "YYYY-MM-DD"
   }},
   {{
-    "title": "Milestone 2: ...",
+    "title": "Another clear action plan title without numbering or the word milestone",
     "description": "...",
     "metric": "...",
     "deadline": "YYYY-MM-DD"
@@ -408,8 +393,9 @@ def get_action_steps_by_goal(goal_id: int) -> dict:
     response = (
         supabase
         .table("action_steps")
-        .select("id, goal_id, title, description, metric, deadline, is_completed, created_at")
+        .select("id, goal_id, title, description, metric, deadline, is_completed, is_archived, created_at")
         .eq("goal_id", goal_id)
+        .eq("is_archived", False)
         .order("id")
         .execute()
     )
@@ -475,8 +461,9 @@ def get_active_goal_stats(user_id: str | None = None) -> dict:
     steps_response = (
         supabase
         .table("action_steps")
-        .select("id, goal_id, title, description, metric, deadline, is_completed, created_at")
+        .select("id, goal_id, title, description, metric, deadline, is_completed, is_archived, created_at")
         .eq("goal_id", goal_id)
+        .eq("is_archived", False)
         .order("id")
         .execute()
     )
@@ -598,24 +585,104 @@ Do NOT include any explanatory text.
     return fallback
 
 
-def bulk_update_action_steps(updates: List[BulkUpdateActionStep]) -> List[dict]:
+def bulk_update_action_steps(updates: List[dict], goal_id: int = None, archive_missing: bool = False) -> List[dict]:
+    """Apply bulk updates to action steps.
+
+    - `updates`: list of objects containing at minimum `id` and optional fields like `deadline`.
+    - `goal_id`: if provided and `archive_missing` is True, any non-completed, non-archived step
+      in that goal which is NOT present in `updates` will be marked `is_archived = True`.
+    """
     updated_steps = []
 
-    for item in updates:
-        response = (
-            supabase
-            .table("action_steps")
-            .update({
-                "deadline": item.deadline
-            })
-            .eq("id", item.id)
-            .execute()
-        )
+    # If requested, archive pending steps in the goal that are not included in the revised updates
+    try:
+        if archive_missing and goal_id:
+            # collect revised ids from updates
+            revised_ids = set()
+            for it in updates:
+                step_id = getattr(it, 'id', None) if not isinstance(it, dict) else it.get('id')
+                if step_id:
+                    revised_ids.add(step_id)
 
-        if response.data:
-            updated_steps.extend(response.data)
+            # fetch current non-archived steps for the goal
+            existing = (
+                supabase
+                .table("action_steps")
+                .select("id, is_completed, is_archived")
+                .eq("goal_id", goal_id)
+                .execute()
+            )
+
+            rows = existing.data or []
+            to_archive = []
+            for r in rows:
+                rid = r.get('id')
+                is_completed = r.get('is_completed')
+                is_archived = r.get('is_archived')
+                # archive only non-completed, currently not archived, and not in revised set
+                if not is_completed and not is_archived and rid not in revised_ids:
+                    to_archive.append(rid)
+
+            if to_archive:
+                try:
+                    resp = (
+                        supabase
+                        .table("action_steps")
+                        .update({"is_archived": True})
+                        .in_("id", to_archive)
+                        .execute()
+                    )
+                    if resp.data:
+                        updated_steps.extend(resp.data)
+                except Exception:
+                    # ignore archive failures and continue
+                    pass
+    except Exception:
+        # ensure archive pass failure doesn't block updates
+        pass
+
+    for item in updates:
+        # Support both dicts and objects
+        step_id = getattr(item, 'id', None) if not isinstance(item, dict) else item.get('id')
+        deadline_val = getattr(item, 'deadline', None) if not isinstance(item, dict) else item.get('deadline')
+
+        if not step_id or deadline_val is None:
+            continue
+
+        try:
+            # Check current completion status
+            existing = (
+                supabase
+                .table("action_steps")
+                .select("id, is_completed")
+                .eq("id", step_id)
+                .limit(1)
+                .execute()
+            )
+
+            rows = existing.data or []
+            if not rows:
+                continue
+            if rows[0].get('is_completed'):
+                # Skip completed steps
+                continue
+
+            response = (
+                supabase
+                .table("action_steps")
+                .update({"deadline": deadline_val})
+                .eq("id", step_id)
+                .execute()
+            )
+
+            if response.data:
+                updated_steps.extend(response.data)
+        except Exception:
+            # Ignore individual failures and continue
+            continue
 
     return updated_steps
+
 def parse_date_value(value):
     if value is None:
         return None
@@ -720,8 +787,9 @@ def get_dashboard_summary(user_id: str | None = None) -> dict:
     steps_response = (
         supabase
         .table("action_steps")
-        .select("id, goal_id, title, description, metric, deadline, is_completed, created_at")
+        .select("id, goal_id, title, description, metric, deadline, is_completed, is_archived, created_at")
         .eq("goal_id", active_goal_id)
+        .eq("is_archived", False)
         .order("deadline")
         .execute()
     )

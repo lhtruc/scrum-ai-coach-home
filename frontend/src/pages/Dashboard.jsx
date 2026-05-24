@@ -1,7 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import supabase from '../services/supabaseClient';
 import './Dashboard.css';
 import Feedback from './Feedback';
+
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
+
+// [Lấy từ nhánh: main] - Đảm bảo lấy token mới nhất và an toàn
+async function getAuthHeaders() {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  if (!token) {
+    throw new Error('No access token found. Please log in again.');
+  }
+
+  localStorage.setItem('access_token', token);
+
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`
+  };
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -11,10 +31,6 @@ export default function Dashboard() {
   const [selectedRole, setSelectedRole] = useState('Employee');
 
   useEffect(() => {
-    const userProfile = JSON.parse(localStorage.getItem('user_profile') || 'null');
-    const userId = userProfile?.id || null;
-    
-    // Load local storage role selection if any
     const savedRole = localStorage.getItem('user_role');
     if (savedRole) {
       setSelectedRole(savedRole);
@@ -22,12 +38,26 @@ export default function Dashboard() {
 
     const fetchSummary = async () => {
       try {
-        const url = userId
-          ? `http://127.0.0.1:8000/api/dashboard/summary?user_id=${userId}`
-          : 'http://127.0.0.1:8000/api/dashboard/summary';
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch dashboard summary');
+        // [Lấy từ nhánh: main] - Không gửi user_id lên URL nữa để tránh lỗi bảo mật IDOR
+        const headers = await getAuthHeaders();
+
+        const response = await fetch(`${API_BASE_URL}/dashboard/summary`, {
+          method: 'GET',
+          headers
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || 'Failed to fetch dashboard summary');
+        }
+
         const summaryData = await response.json();
+
+        if (summaryData.user_role) {
+          setSelectedRole(summaryData.user_role);
+          localStorage.setItem('user_role', summaryData.user_role);
+        }
+
         setData(summaryData);
         setLoading(false);
       } catch (err) {
@@ -40,12 +70,12 @@ export default function Dashboard() {
     fetchSummary();
   }, []);
 
-  // Update selectedRole reactively if changed in settings or elsewhere
   useEffect(() => {
     const handleStorageChange = () => {
       const savedRole = localStorage.getItem('user_role');
       if (savedRole) setSelectedRole(savedRole);
     };
+
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
@@ -64,20 +94,23 @@ export default function Dashboard() {
       <div className="dashboard-error">
         <div className="error-card">
           <p>{errorMsg}</p>
-          <button className="btn btn-primary" onClick={() => window.location.reload()}>Retry</button>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>
+            Retry
+          </button>
         </div>
       </div>
     );
   }
 
-  const { user_name, current_goal, progress_percentage, next_action_step } = data || {};
+  // [Lấy từ nhánh: main] - Có fallback data an toàn hơn
+  const { user_name, user_role, current_goal, progress_percentage, next_action_step } = data || {};
 
   return (
     <div className="main-dashboard-view">
       {/* Welcome Header */}
       <header className="dashboard-header">
         <h1 className="welcome-message">
-          Welcome, <span className="highlight-text">{user_name}</span> ({selectedRole})
+          Welcome, <span className="highlight-text">{user_name || 'User'}</span> ({user_role || selectedRole})
         </h1>
         <p className="dashboard-subtitle">
           Here is your custom learning progress summary for today.
@@ -112,13 +145,13 @@ export default function Dashboard() {
           <div>
             <span className="widget-label">Progress %</span>
             <div className="progress-value-container">
-              <span className="progress-num">{progress_percentage}%</span>
+              <span className="progress-num">{progress_percentage || 0}%</span>
               <span className="progress-sub">Completed</span>
             </div>
             <div className="widget-progress-bar-track">
               <div 
                 className="widget-progress-bar-fill" 
-                style={{ width: `${progress_percentage}%` }}
+                style={{ width: `${progress_percentage || 0}%` }}
               />
             </div>
           </div>
@@ -139,6 +172,7 @@ export default function Dashboard() {
               }
             </p>
           </div>
+          {/* [Lấy từ nhánh: adaptive] - Nút này nên dẫn tới action-plan thay vì progress */}
           {current_goal && (
             <Link to="/action-plan" className="widget-link">Open Action Plan</Link>
           )}
@@ -149,6 +183,7 @@ export default function Dashboard() {
       <section className="dashboard-shortcuts-section">
         <h2 className="section-title">Quick Actions</h2>
         <div className="shortcuts-grid">
+          {/* [Lấy từ nhánh: adaptive] - Các đường link được fix lại để không bị trang 404 Not Found */}
           <div className="shortcut-item-card" onClick={() => navigate('/skills')}>
             <h4>Skill Profile</h4>
             <p>Update skill rating levels and view coach analysis.</p>

@@ -20,7 +20,8 @@ import Feedback from "./pages/Feedback";
 import Settings from "./pages/Settings";
 
 function HomeRedirect() {
-  const token = localStorage.getItem("access_token") || localStorage.getItem("jwt_token");
+  // Đã chuẩn hóa: Chỉ sử dụng access_token theo thiết kế mới
+  const token = localStorage.getItem("access_token");
   return <Navigate to={token ? "/dashboard" : "/welcome"} replace />;
 }
 
@@ -29,11 +30,14 @@ export default function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
+
+          {/* Public Routes */}
           <Route path="/welcome" element={<Welcome />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/onboarding" element={<Onboarding />} />
 
+          {/* Protected Routes */}
           <Route path="/" element={<HomeRedirect />} />
 
           <Route
@@ -51,9 +55,7 @@ export default function App() {
             path="/skill-profile"
             element={
               <RequireAuth>
-                <RequireRole>
-                  <SkillProfile />
-                </RequireRole>
+                <SkillProfile />
               </RequireAuth>
             }
           />
@@ -123,6 +125,7 @@ export default function App() {
               </RequireAuth>
             }
           />
+
         </Routes>
       </Layout>
     </BrowserRouter>

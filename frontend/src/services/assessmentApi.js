@@ -1,22 +1,25 @@
+import supabase from './supabaseClient';
+
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
-const getAuthToken = () => {
-  return localStorage.getItem('access_token') || localStorage.getItem('jwt_token');
+const getAuthHeaders = async () => {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  if (!token) {
+    throw new Error('No access token found. Please log in again.');
+  }
+
+  localStorage.setItem('access_token', token);
+
+  return {
+    Authorization: `Bearer ${token}`,
+  };
 };
 
-const getAuthHeaders = () => {
-  const token = getAuthToken();
-
-  return token
-    ? {
-        Authorization: `Bearer ${token}`,
-      }
-    : {};
-};
-
-const getJsonHeaders = ({ auth = false } = {}) => ({
+const getJsonHeaders = async ({ auth = false } = {}) => ({
   'Content-Type': 'application/json',
-  ...(auth ? getAuthHeaders() : {}),
+  ...(auth ? await getAuthHeaders() : {}),
 });
 
 const assessmentApi = {
@@ -33,7 +36,7 @@ const assessmentApi = {
   getCurrentUser: async () => {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       method: 'GET',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -46,7 +49,7 @@ const assessmentApi = {
   submitAssessment: async (payload) => {
     const response = await fetch(`${API_BASE_URL}/skills/assess`, {
       method: 'POST',
-      headers: getJsonHeaders({ auth: true }),
+      headers: await getJsonHeaders({ auth: true }),
       body: JSON.stringify(payload),
     });
 
@@ -60,7 +63,7 @@ const assessmentApi = {
   suggestGoals: async (payload) => {
     const response = await fetch(`${API_BASE_URL}/goals/suggest`, {
       method: 'POST',
-      headers: getJsonHeaders({ auth: true }),
+      headers: await getJsonHeaders({ auth: true }),
       body: JSON.stringify(payload),
     });
 
@@ -74,7 +77,7 @@ const assessmentApi = {
   refineCustomGoal: async (payload) => {
     const response = await fetch(`${API_BASE_URL}/goals/custom/refine`, {
       method: 'POST',
-      headers: getJsonHeaders({ auth: true }),
+      headers: await getJsonHeaders({ auth: true }),
       body: JSON.stringify(payload),
     });
 
@@ -88,7 +91,7 @@ const assessmentApi = {
   confirmGoal: async (payload) => {
     const response = await fetch(`${API_BASE_URL}/goals/confirm`, {
       method: 'POST',
-      headers: getJsonHeaders({ auth: true }),
+      headers: await getJsonHeaders({ auth: true }),
       body: JSON.stringify(payload),
     });
 
@@ -102,7 +105,7 @@ const assessmentApi = {
   getGoalActionSteps: async (goalId) => {
     const response = await fetch(`${API_BASE_URL}/goals/${goalId}/actions`, {
       method: 'GET',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -115,7 +118,7 @@ const assessmentApi = {
   updateActionStepStatus: async (stepId, isCompleted) => {
     const response = await fetch(`${API_BASE_URL}/actions/${stepId}/status`, {
       method: 'PUT',
-      headers: getJsonHeaders({ auth: true }),
+      headers: await getJsonHeaders({ auth: true }),
       body: JSON.stringify({
         is_completed: isCompleted,
       }),
