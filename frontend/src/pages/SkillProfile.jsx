@@ -168,7 +168,7 @@ function SkillProfile() {
           <p>Please take the assessment first to view your skill profile.</p>
 
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/skills?section=goal")}
             style={{
               padding: "12px 22px",
               border: "none",
@@ -210,7 +210,7 @@ function SkillProfile() {
           })}
 
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/skills?section=goal")}
             style={{
               padding: "12px 22px",
               border: "none",
