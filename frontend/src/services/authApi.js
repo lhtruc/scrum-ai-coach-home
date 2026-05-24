@@ -45,6 +45,27 @@ const authApi = {
     }
 ,
 
+    updateProfile: async ({ display_name, role }) => {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch('http://127.0.0.1:8000/api/users/profile', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ display_name, role })
+        });
+
+        const result = await response.json().catch(() => null);
+
+        if (!response.ok) {
+            throw new Error(result?.message || result?.detail || 'Failed to update profile');
+        }
+
+        return result;
+    }
+,
+
     getCurrentUser: async () => {
         const token = localStorage.getItem('access_token');
         const response = await fetch('http://127.0.0.1:8000/api/auth/me', {
