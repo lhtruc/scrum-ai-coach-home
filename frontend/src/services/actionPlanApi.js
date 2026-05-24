@@ -80,6 +80,17 @@ const actionPlanApi = {
     if (!response.ok) throw new Error('Failed to request plan revision');
     return await response.json();
   }
+,
+  // PUT /api/actions/bulk-update — apply a set of updates for actions
+  bulkUpdate: async (payload) => {
+    const response = await fetch(`${API_BASE_URL}/actions/bulk-update`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Failed to bulk update actions');
+    return await response.json();
+  }
 };
 
 export default actionPlanApi;

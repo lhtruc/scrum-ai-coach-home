@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import date
 from dotenv import load_dotenv
 from supabase import create_client
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime, timedelta
 import json
@@ -514,8 +514,9 @@ def get_main_dashboard_summary(user_id: str | None = None):
             steps_response = (
                 supabase
                 .table("action_steps")
-                .select("id, title, is_completed, deadline")
+                .select("id, title, is_completed, deadline, is_archived")
                 .eq("goal_id", goal_id)
+                .eq("is_archived", False)
                 .order("id")
                 .execute()
             )
@@ -870,13 +871,112 @@ def revise_action_plan(current_user=Depends(verify_token)):
     pending_steps = steps_resp.data or []
     if not pending_steps:
         return {"message": "No pending action steps to revise", "revised_steps": []}
-
     revised = revise_action_steps_by_ai(pending_steps)
-    return {"message": "Revised steps generated successfully", "revised_steps": revised}
+
+    # Also fetch completed steps so each option can include kept completed work
+    completed_resp = (
+        supabase
+        .table("action_steps")
+        .select("id, goal_id, title, description, metric, deadline, is_completed")
+        .eq("goal_id", goal_id)
+        .eq("is_completed", True)
+        .order("id")
+        .execute()
+    )
+    completed_steps = completed_resp.data or []
+
+    # Build Option 1: Reduce scope — keep completed steps, keep first half of revised pending steps
+    half = max(1, len(revised) // 2)
+    reduced_pending = revised[:half]
+    option1_steps = []
+    # include completed as DONE
+    for s in completed_steps:
+        option1_steps.append({
+            "id": s.get("id"),
+            "title": s.get("title"),
+            "is_completed": True,
+            "status": "DONE",
+            "deadline": s.get("deadline")
+        })
+    # include reduced pending as NEW/PENDING
+    for s in reduced_pending:
+        option1_steps.append({
+            "id": s.get("id"),
+            "title": s.get("title"),
+            "is_completed": s.get("is_completed", False),
+            "status": "PENDING",
+            "deadline": s.get("deadline")
+        })
+
+    # Build Option 2: Extend deadline — keep all pending but extend deadlines by 14 days
+    option2_steps = []
+    for s in completed_steps:
+        option2_steps.append({
+            "id": s.get("id"),
+            "title": s.get("title"),
+            "is_completed": True,
+            "status": "DONE",
+            "deadline": s.get("deadline")
+        })
+
+    from datetime import datetime, timedelta
+
+    for s in revised:
+        try:
+            base = datetime.strptime(s.get("deadline")[:10], "%Y-%m-%d").date()
+            new_deadline = (base + timedelta(days=14)).isoformat()
+        except Exception:
+            new_deadline = s.get("deadline")
+
+        option2_steps.append({
+            "id": s.get("id"),
+            "title": s.get("title"),
+            "is_completed": s.get("is_completed", False),
+            "status": "PENDING",
+            "deadline": new_deadline
+        })
+
+    options = [
+        {
+            "version": "Version 1",
+            "strategy": "Reduce scope",
+            "description": "Keep completed steps, reduce pending scope, and move deadline slightly.",
+            "deadline_change": "",
+            "steps": option1_steps
+        },
+        {
+            "version": "Version 2",
+            "strategy": "Extend deadline",
+            "description": "Keep all pending steps but extend the deadline.",
+            "deadline_change": "",
+            "steps": option2_steps
+        }
+    ]
+
+    return {"message": "Revision options generated successfully", "options": options}
 
 @app.put("/api/actions/bulk-update")
-def bulk_update_actions(data: BulkUpdateActionStepsRequest, current_user=Depends(verify_token)):
-    updated_steps = bulk_update_action_steps(data.updates)
+async def bulk_update_actions(
+    request: Request,
+    current_user=Depends(verify_token)
+):
+    """Accept either `updates` or `steps` in the request JSON, and apply bulk updates.
+
+    Only non-completed steps will be updated. Returns the updated step records.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    updates = body.get("updates") or body.get("steps") or []
+    goal_id = body.get("goal_id")
+    archive_missing = bool(body.get("archive_missing") or body.get("archive") or (str(body.get("version") or "").strip() == "Version 1") or ("reduce" in (str(body.get("strategy") or "").lower())) )
+
+    if not isinstance(updates, list):
+        raise HTTPException(status_code=400, detail="`updates` must be a list")
+
+    updated_steps = bulk_update_action_steps(updates, goal_id=goal_id, archive_missing=archive_missing)
     return {
         "message": "Action steps updated successfully",
         "updated_steps": updated_steps
@@ -895,4 +995,4 @@ def logout(current_user=Depends(verify_token)):
     return {
         "message": "Logout successful. Please clear token on client side."
     }
-# ĐÃ BỎ HÀM GET SUMMARY 
+
