@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import authApi from '../services/authApi';
 import './Settings.css';
 
 export default function Settings() {
@@ -6,12 +7,17 @@ export default function Settings() {
   const [role, setRole] = useState('Employee');
   const [email, setEmail] = useState('you@company.com');
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const userProfile = JSON.parse(localStorage.getItem('user_profile') || 'null');
     if (userProfile) {
-      setName(userProfile.name || 'User');
+      setName(userProfile.display_name || userProfile.name || 'User');
       setEmail(userProfile.email || 'you@company.com');
+      if (userProfile.role) {
+        setRole(userProfile.role);
+      }
     }
     const savedRole = localStorage.getItem('user_role');
     if (savedRole) {
@@ -19,18 +25,40 @@ export default function Settings() {
     }
   }, []);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    localStorage.setItem('user_role', role);
-    const userProfile = JSON.parse(localStorage.getItem('user_profile') || 'null') || {};
-    userProfile.name = name;
-    localStorage.setItem('user_profile', JSON.stringify(userProfile));
-    
-    // Trigger storage change event for dynamic update
-    window.dispatchEvent(new Event('storage'));
-    
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 2000);
+    setError('');
+    setSuccess(false);
+    setIsSaving(true);
+
+    try {
+      const result = await authApi.updateProfile({
+        display_name: name.trim(),
+        role
+      });
+
+      localStorage.setItem('user_role', role);
+      const userProfile = JSON.parse(localStorage.getItem('user_profile') || 'null') || {};
+      const nextProfile = {
+        ...userProfile,
+        ...(result.profile || {}),
+        id: userProfile.id,
+        email: userProfile.email || email,
+        display_name: name.trim(),
+        role
+      };
+      localStorage.setItem('user_profile', JSON.stringify(nextProfile));
+
+      window.dispatchEvent(new CustomEvent('auth-changed', { detail: nextProfile }));
+      window.dispatchEvent(new Event('storage'));
+
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 2000);
+    } catch (err) {
+      setError(err.message || 'Failed to save settings');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -42,6 +70,7 @@ export default function Settings() {
 
       <form className="settings-form glass-card" onSubmit={handleSave}>
         {success && <div className="settings-success-alert">Settings saved successfully!</div>}
+        {error && <div className="settings-error-alert">{error}</div>}
         
         <div className="settings-form-row">
           <label htmlFor="pref-name">Name</label>
@@ -82,7 +111,9 @@ export default function Settings() {
         </div>
 
         <div style={{ marginTop: '24px' }}>
-          <button className="btn btn-primary" type="submit">Save Changes</button>
+          <button className="btn btn-primary" type="submit" disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
         </div>
       </form>
     </div>
